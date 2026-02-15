@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>
+        (function() {
+            var t = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <style>
         :root {
             --bg: #0c0d10;
@@ -26,6 +32,18 @@
         }
 
         [data-theme="dark"] {
+            --bg: #0c0d10;
+            --surface: #141519;
+            --surface-hover: #1a1b21;
+            --border: #23252b;
+            --text: #b4bcd0;
+            --text-bright: #e2e6f0;
+            --text-muted: #6b7189;
+            --accent: #6c8aff;
+            --accent-dim: rgba(108, 138, 255, 0.12);
+            --green: #4ade80;
+            --amber: #fbbf24;
+            --red: #f87171;
             --pico-background-color: var(--bg);
             --pico-card-background-color: var(--surface);
             --pico-card-sectioning-background-color: var(--surface);
@@ -52,6 +70,47 @@
             --pico-block-spacing-vertical: 0.8rem;
             --pico-nav-element-spacing-horizontal: 0.8rem;
             color-scheme: dark;
+        }
+
+        [data-theme="light"] {
+            --bg: #f7f8fb;
+            --surface: #ffffff;
+            --surface-hover: #eef0f5;
+            --border: #d8dbe5;
+            --text: #4a4e5a;
+            --text-bright: #1a1d27;
+            --text-muted: #7c8194;
+            --accent: #4a6cf7;
+            --accent-dim: rgba(74, 108, 247, 0.08);
+            --green: #16a34a;
+            --amber: #d97706;
+            --red: #dc2626;
+            --pico-background-color: var(--bg);
+            --pico-card-background-color: var(--surface);
+            --pico-card-sectioning-background-color: var(--surface);
+            --pico-color: var(--text);
+            --pico-h1-color: var(--text-bright);
+            --pico-h2-color: var(--text-bright);
+            --pico-h3-color: var(--text-bright);
+            --pico-h4-color: var(--text-bright);
+            --pico-primary: var(--accent);
+            --pico-primary-hover: #3958d9;
+            --pico-primary-background: var(--accent);
+            --pico-primary-hover-background: #3958d9;
+            --pico-secondary: var(--text-muted);
+            --pico-secondary-background: var(--surface);
+            --pico-secondary-hover-background: var(--surface-hover);
+            --pico-muted-color: var(--text-muted);
+            --pico-muted-border-color: var(--border);
+            --pico-table-border-color: var(--border);
+            --pico-form-element-background-color: var(--surface);
+            --pico-form-element-border-color: var(--border);
+            --pico-form-element-focus-color: var(--accent);
+            --pico-font-size: 15px;
+            --pico-border-radius: 8px;
+            --pico-block-spacing-vertical: 0.8rem;
+            --pico-nav-element-spacing-horizontal: 0.8rem;
+            color-scheme: light;
         }
 
         * { transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
@@ -222,6 +281,13 @@
         .source-badge[data-source="devto"] { background: rgba(0, 112, 243, 0.12); color: #3399ff; }
         .source-badge[data-source="arxiv"] { background: rgba(179, 27, 27, 0.12); color: #e04444; }
         .source-badge[data-source="newsapi"] { background: rgba(156, 39, 176, 0.12); color: #bb6bd9; }
+        [data-theme="light"] .source-badge { background: rgba(74, 108, 247, 0.08); color: #3958d9; }
+        [data-theme="light"] .source-badge[data-source="hackernews"] { background: rgba(255, 102, 0, 0.08); color: #c45500; }
+        [data-theme="light"] .source-badge[data-source="rss"] { background: rgba(22, 163, 74, 0.08); color: #15803d; }
+        [data-theme="light"] .source-badge[data-source="reddit"] { background: rgba(255, 69, 0, 0.08); color: #c44500; }
+        [data-theme="light"] .source-badge[data-source="devto"] { background: rgba(0, 112, 243, 0.08); color: #0059c2; }
+        [data-theme="light"] .source-badge[data-source="arxiv"] { background: rgba(179, 27, 27, 0.08); color: #b31b1b; }
+        [data-theme="light"] .source-badge[data-source="newsapi"] { background: rgba(156, 39, 176, 0.08); color: #8e24aa; }
 
         /* Tag badges */
         .tag-badge {
@@ -325,7 +391,8 @@
         footer small { color: var(--text-muted); }
 
         /* Audio player */
-        audio { filter: invert(1) hue-rotate(180deg); height: 32px; }
+        audio { height: 32px; }
+        [data-theme="dark"] audio { filter: invert(1) hue-rotate(180deg); }
 
         /* Empty state */
         .empty-state {
@@ -337,6 +404,25 @@
             background: var(--surface);
             padding: 2px 6px;
             border-radius: 4px;
+        }
+
+        /* Search bar */
+        .search-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+        .search-bar input {
+            flex: 1 1 auto !important;
+            width: auto !important;
+            margin-bottom: 0 !important;
+        }
+        .search-bar button {
+            flex: 0 0 auto;
+            width: auto !important;
+            white-space: nowrap;
+            margin-bottom: 0 !important;
         }
 
         /* Filter bar */
@@ -358,6 +444,24 @@
             gap: 0.5rem;
             align-items: center;
         }
+
+        /* Theme toggle */
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            color: var(--text-muted);
+            transition: color 150ms ease;
+        }
+        .theme-toggle:hover { color: var(--text-bright); }
+        .theme-toggle:active { transform: scale(0.9); }
+        .theme-toggle svg { width: 18px; height: 18px; display: block; }
+        [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+        [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+        [data-theme="light"] .theme-toggle .icon-sun { display: none; }
+        [data-theme="light"] .theme-toggle .icon-moon { display: block; }
 
         /* Table scroll wrapper */
         .table-wrap {
@@ -434,6 +538,12 @@
             <li><a href="/digests" {% if "/digest" in request.url.path %}class="active"{% endif %}>Digests</a></li>
             <li><a href="/podcasts" {% if "/podcast" in request.url.path %}class="active"{% endif %}>Podcasts</a></li>
             <li><a href="/stats" {% if request.url.path == "/stats" %}class="active"{% endif %}>Stats</a></li>
+            <li>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle light/dark theme">
+                    <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+            </li>
         </ul>
     </nav>
     <main class="container">
@@ -442,5 +552,13 @@
     <footer class="container">
         <small>AI Pulse — curated by Claude</small>
     </footer>
+    <script>
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+    </script>
 </body>
 </html>

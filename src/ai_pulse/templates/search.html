@@ -6,11 +6,9 @@
     <p>Find the best articles on any topic from across the web.</p>
 </div>
 
-<form method="post" action="/search">
-    <div class="search-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
-        <input type="text" name="query" value="{{ query }}" placeholder="e.g. agentic engineering, RAG patterns, Claude Code" autofocus style="flex: 1;" />
-        <button type="submit" style="white-space: nowrap;">Search</button>
-    </div>
+<form method="post" action="/search" class="search-bar">
+    <input type="text" name="query" value="{{ query }}" placeholder="e.g. agentic engineering, RAG patterns, Claude Code" autofocus />
+    <button type="submit">Search</button>
 </form>
 
 {% if added %}
