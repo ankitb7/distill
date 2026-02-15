@@ -1,62 +1,446 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}AI Pulse{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <style>
         :root {
-            --pico-font-size: 16px;
+            --bg: #0c0d10;
+            --surface: #141519;
+            --surface-hover: #1a1b21;
+            --border: #23252b;
+            --text: #b4bcd0;
+            --text-bright: #e2e6f0;
+            --text-muted: #6b7189;
+            --accent: #6c8aff;
+            --accent-dim: rgba(108, 138, 255, 0.12);
+            --green: #4ade80;
+            --amber: #fbbf24;
+            --red: #f87171;
         }
-        .score-bar {
-            display: inline-block;
-            height: 8px;
-            border-radius: 4px;
-            background: var(--pico-primary);
+
+        [data-theme="dark"] {
+            --pico-background-color: var(--bg);
+            --pico-card-background-color: var(--surface);
+            --pico-card-sectioning-background-color: var(--surface);
+            --pico-color: var(--text);
+            --pico-h1-color: var(--text-bright);
+            --pico-h2-color: var(--text-bright);
+            --pico-h3-color: var(--text-bright);
+            --pico-h4-color: var(--text-bright);
+            --pico-primary: var(--accent);
+            --pico-primary-hover: #8ba3ff;
+            --pico-primary-background: var(--accent);
+            --pico-primary-hover-background: #8ba3ff;
+            --pico-secondary: var(--text-muted);
+            --pico-secondary-background: var(--surface);
+            --pico-secondary-hover-background: var(--surface-hover);
+            --pico-muted-color: var(--text-muted);
+            --pico-muted-border-color: var(--border);
+            --pico-table-border-color: var(--border);
+            --pico-form-element-background-color: var(--surface);
+            --pico-form-element-border-color: var(--border);
+            --pico-form-element-focus-color: var(--accent);
+            --pico-font-size: 15px;
+            --pico-border-radius: 8px;
+            --pico-block-spacing-vertical: 0.8rem;
+            --pico-nav-element-spacing-horizontal: 0.8rem;
+            color-scheme: dark;
         }
+
+        * { transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            letter-spacing: -0.01em;
+            background: var(--bg);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        code, kbd, pre, .mono {
+            font-family: 'JetBrains Mono', 'Menlo', monospace;
+            font-size: 0.85em;
+        }
+
+        /* Nav */
+        nav.container {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.8rem;
+            margin-bottom: 0;
+        }
+        nav .brand {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-bright);
+            text-decoration: none;
+            letter-spacing: -0.03em;
+        }
+        nav .brand span { color: var(--accent); }
+        nav ul li a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 4px 0;
+            position: relative;
+        }
+        nav ul li a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transition: transform 150ms ease;
+        }
+        nav ul li a:hover { color: var(--text-bright); }
+        nav ul li a:hover::after { transform: scaleX(1); }
+        nav ul li a.active {
+            color: var(--text-bright);
+        }
+        nav ul li a.active::after { transform: scaleX(1); }
+
+        /* Page header */
+        .page-header {
+            margin: 2rem 0 1.5rem;
+        }
+        .page-header h2 {
+            margin-bottom: 0.25rem;
+            font-size: 1.5rem;
+        }
+        .page-header p {
+            color: var(--text-muted);
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Article list (card rows) */
+        .article-list { list-style: none; padding: 0; margin: 0; }
+        .article-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 0.9rem 1rem;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            transition: background-color 150ms ease, border-color 150ms ease;
+        }
+        .article-row:hover {
+            background: var(--surface);
+            border-color: var(--border);
+        }
+        .article-rank {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            min-width: 24px;
+            padding-top: 2px;
+        }
+        .article-body { flex: 1; min-width: 0; }
+        .article-title {
+            color: var(--text-bright);
+            text-decoration: none;
+            font-weight: 500;
+            line-height: 1.4;
+            display: block;
+        }
+        .article-title:hover { color: var(--accent); }
+        .article-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .article-scores {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+        .composite-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: var(--accent);
+            min-width: 40px;
+            text-align: right;
+        }
+        .score-bar-wrap {
+            width: 60px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .score-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--accent);
+            transition: width 300ms ease;
+        }
+        .score-detail {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .points-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Source badges with per-source color */
         .source-badge {
             display: inline-block;
             padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
             font-weight: 600;
-            background: var(--pico-secondary-background);
-            color: var(--pico-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
-        .article-meta {
+        .source-badge { background: var(--accent-dim); color: var(--accent); }
+        .source-badge[data-source="hackernews"] { background: rgba(255, 102, 0, 0.12); color: #ff8533; }
+        .source-badge[data-source="rss"] { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
+        .source-badge[data-source="reddit"] { background: rgba(255, 69, 0, 0.12); color: #ff6833; }
+        .source-badge[data-source="devto"] { background: rgba(0, 112, 243, 0.12); color: #3399ff; }
+        .source-badge[data-source="arxiv"] { background: rgba(179, 27, 27, 0.12); color: #e04444; }
+        .source-badge[data-source="newsapi"] { background: rgba(156, 39, 176, 0.12); color: #bb6bd9; }
+
+        /* Tag badges */
+        .tag-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--surface-hover);
+            color: var(--text-muted);
+        }
+
+        /* Stat cards */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 500;
+        }
+        .stat-card .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-top: 0.25rem;
+        }
+
+        /* Tables — cleaner dark styling */
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        table thead th {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+        }
+        table tbody tr { transition: background-color 150ms ease; }
+        table tbody tr:hover { background: var(--surface-hover); }
+        table td { border-bottom: 1px solid var(--border); }
+
+        /* Buttons */
+        button, [type="submit"] { font-weight: 500; font-size: 0.9rem; }
+        button:active, [type="submit"]:active { transform: scale(0.97); }
+
+        /* Forms */
+        input, select, textarea {
+            background: var(--surface) !important;
+            border-color: var(--border) !important;
+            color: var(--text) !important;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        /* Status indicators */
+        .status-green { color: var(--green); }
+        .status-amber { color: var(--amber); }
+        .status-red { color: var(--red); }
+
+        /* Toast / flash messages */
+        .flash {
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
             font-size: 0.85rem;
-            color: var(--pico-muted-color);
+            font-weight: 500;
+            margin-bottom: 1rem;
         }
-        .score-detail {
-            font-size: 0.8rem;
-            color: var(--pico-muted-color);
+        .flash-success { background: rgba(74, 222, 128, 0.1); color: var(--green); border: 1px solid rgba(74, 222, 128, 0.2); }
+        .flash-info { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(108, 138, 255, 0.2); }
+        .flash-error { background: rgba(248, 113, 113, 0.1); color: var(--red); border: 1px solid rgba(248, 113, 113, 0.2); }
+
+        /* Details/summary */
+        details { border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; background: var(--surface); }
+        details summary { cursor: pointer; font-weight: 500; color: var(--text-bright); }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+            padding-top: 1.5rem;
         }
-        nav ul li strong {
-            color: var(--pico-primary);
+        footer small { color: var(--text-muted); }
+
+        /* Audio player */
+        audio { filter: invert(1) hue-rotate(180deg); height: 32px; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+        .empty-state code {
+            background: var(--surface);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+        .filter-bar select {
+            max-width: 200px;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        /* Add form button row */
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        /* Table scroll wrapper */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Responsive — tablet */
+        @media (max-width: 768px) {
+            .article-scores {
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 0.25rem;
+            }
+            .score-bar-wrap { display: none; }
+            .score-detail { display: none; }
+            .stat-grid { grid-template-columns: repeat(2, 1fr); }
+            .filter-bar { flex-direction: column; }
+            .filter-bar select { max-width: 100%; }
+            .podcast-actions { grid-template-columns: 1fr !important; }
+            .search-bar { flex-direction: column; }
+            .search-bar input { width: 100%; }
+            .search-bar button { width: 100%; }
+        }
+
+        /* Responsive — phone */
+        @media (max-width: 480px) {
+            nav.container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            nav ul {
+                flex-wrap: wrap;
+                gap: 0.25rem 0;
+            }
+            nav ul li a { font-size: 0.8rem; }
+
+            .page-header h2 { font-size: 1.25rem; }
+
+            .article-row {
+                padding: 0.75rem 0.5rem;
+                gap: 0.5rem;
+            }
+            .article-rank { min-width: 18px; font-size: 0.7rem; }
+            .article-title { font-size: 0.9rem; }
+            .article-meta { font-size: 0.75rem; gap: 0.35rem; }
+            .article-scores { display: none; }
+
+            .composite-score { font-size: 0.8rem; min-width: 32px; }
+
+            .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+            .stat-card { padding: 0.75rem; }
+            .stat-card .value { font-size: 1.2rem; }
+
+            table { font-size: 0.85rem; }
+            table thead th { font-size: 0.65rem; }
+
+            .podcast-actions { gap: 0.75rem !important; }
+
+            .btn-row { flex-direction: column; align-items: stretch; }
         }
     </style>
 </head>
 <body>
     <nav class="container">
         <ul>
-            <li><strong>AI Pulse</strong></li>
+            <li><a href="/" class="brand"><span>AI</span> Pulse</a></li>
         </ul>
         <ul>
-            <li><a href="/">Articles</a></li>
-            <li><a href="/search">Search</a></li>
-            <li><a href="/add">Add Links</a></li>
-            <li><a href="/digests">Digests</a></li>
-            <li><a href="/podcasts">Podcasts</a></li>
-            <li><a href="/stats">Stats</a></li>
+            <li><a href="/" {% if request.url.path == "/" %}class="active"{% endif %}>Articles</a></li>
+            <li><a href="/search" {% if "/search" in request.url.path %}class="active"{% endif %}>Search</a></li>
+            <li><a href="/add" {% if request.url.path == "/add" %}class="active"{% endif %}>Add</a></li>
+            <li><a href="/digests" {% if "/digest" in request.url.path %}class="active"{% endif %}>Digests</a></li>
+            <li><a href="/podcasts" {% if "/podcast" in request.url.path %}class="active"{% endif %}>Podcasts</a></li>
+            <li><a href="/stats" {% if request.url.path == "/stats" %}class="active"{% endif %}>Stats</a></li>
         </ul>
     </nav>
     <main class="container">
         {% block content %}{% endblock %}
     </main>
     <footer class="container">
-        <small>AI Pulse — Article curation powered by Claude</small>
+        <small>AI Pulse — curated by Claude</small>
     </footer>
 </body>
 </html>

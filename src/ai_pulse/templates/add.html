@@ -1,23 +1,24 @@
 {% extends "base.html" %}
 {% block title %}Add Links — AI Pulse{% endblock %}
 {% block content %}
-<h2>Add Links</h2>
-<p>Drop one URL per line. Content will be fetched and extracted automatically.</p>
+<div class="page-header">
+    <h2>Add Links</h2>
+    <p>Drop one URL per line. Content will be fetched and extracted automatically.</p>
+</div>
 
 <form hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
-    <textarea name="urls" rows="6" placeholder="https://example.com/great-ai-article
+    <textarea name="urls" rows="5" placeholder="https://example.com/great-ai-article
 https://another.com/llm-deep-dive
-https://blog.example.com/practical-rag-guide" style="font-family: monospace;"></textarea>
-    <div class="grid">
+https://blog.example.com/practical-rag-guide" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;"></textarea>
+    <div class="btn-row">
         <button type="submit">Add & Extract</button>
-        <div>
-            <span id="spinner" class="htmx-indicator" aria-busy="true">Processing links...</span>
-        </div>
+        <span id="spinner" class="htmx-indicator" aria-busy="true" style="color: var(--text-muted); font-size: 0.85rem;">Processing...</span>
     </div>
 </form>
 
-<div id="results" style="margin-top: 1rem;">
+<div id="results" style="margin-top: 1.5rem;">
     {% if results %}
+    <div class="table-wrap">
     <table>
         <thead>
             <tr>
@@ -34,13 +35,13 @@ https://blog.example.com/practical-rag-guide" style="font-family: monospace;"></
                 </td>
                 <td>
                     {% if r.status == "added" %}
-                    <span style="color: green;">Added</span>
+                    <span class="status-green">Added</span>
                     {% elif r.status == "exists" %}
-                    <span style="color: orange;">Already exists</span>
+                    <span class="status-amber">Already exists</span>
                     {% elif r.status == "extracted" %}
-                    <span style="color: green;">Added + extracted</span>
+                    <span class="status-green">Added + extracted</span>
                     {% else %}
-                    <span style="color: red;">{{ r.status }}</span>
+                    <span class="status-red">{{ r.status }}</span>
                     {% endif %}
                 </td>
                 <td>{{ r.title or '—' }}</td>
@@ -48,6 +49,7 @@ https://blog.example.com/practical-rag-guide" style="font-family: monospace;"></
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

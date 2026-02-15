@@ -352,6 +352,26 @@ class Database:
             results.append((article, score))
         return results
 
+    def truncate_content(self, excerpt_length: int = 300) -> int:
+        """Replace full article text with a short excerpt. Called after scoring."""
+        rows = self.conn.execute(
+            "SELECT id, content_text FROM articles "
+            "WHERE content_text IS NOT NULL AND content_length > ?",
+            (excerpt_length,),
+        ).fetchall()
+        count = 0
+        for row in rows:
+            full = row["content_text"]
+            if len(full) > excerpt_length:
+                excerpt = full[:excerpt_length].rsplit(" ", 1)[0] + "..."
+                self.conn.execute(
+                    "UPDATE articles SET content_text = ?, content_length = ? WHERE id = ?",
+                    (excerpt, len(excerpt), row["id"]),
+                )
+                count += 1
+        self.conn.commit()
+        return count
+
     def delete_old_articles(self, before: str) -> int:
         self.conn.execute(
             "DELETE FROM scores WHERE article_id IN "

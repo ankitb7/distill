@@ -1,9 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Digests — AI Pulse{% endblock %}
 {% block content %}
-<h2>Weekly Digests</h2>
+<div class="page-header">
+    <h2>Digests</h2>
+    <p>Weekly markdown summaries of top articles.</p>
+</div>
 
 {% if digests %}
+<div class="table-wrap">
 <table>
     <thead>
         <tr>
@@ -17,14 +21,18 @@
         {% for d in digests %}
         <tr>
             <td><strong>{{ d.week_label }}</strong></td>
-            <td>{{ d.article_count }}</td>
-            <td>{{ d.created_at }}</td>
+            <td class="mono">{{ d.article_count }}</td>
+            <td>{{ d.created_at[:10] if d.created_at else '—' }}</td>
             <td><a href="/digest/{{ d.week_label }}">View</a></td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% else %}
-<p>No digests generated yet. Run <code>ai-pulse digest</code> to create one.</p>
+<div class="empty-state">
+    <p>No digests generated yet.</p>
+    <p>Run <code>ai-pulse digest</code> to create one.</p>
+</div>
 {% endif %}
 {% endblock %}

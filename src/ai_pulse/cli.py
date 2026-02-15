@@ -209,11 +209,16 @@ def run(config_path: Annotated[Path | None, typer.Option("--config")] = None):
     console.print(f"  Duplicates found: {deduped}")
 
     # Score
-    console.print("\n[bold cyan]4/4 Scoring[/bold cyan]")
+    console.print("\n[bold cyan]4/5 Scoring[/bold cyan]")
     from ai_pulse.processing.scorer import score_articles
 
     scored = asyncio.run(score_articles(db, config))
     console.print(f"  Scored: {scored}")
+
+    # Truncate content — keep only excerpts after scoring
+    console.print("\n[bold cyan]5/5 Truncating stored content[/bold cyan]")
+    truncated = db.truncate_content(excerpt_length=300)
+    console.print(f"  Truncated: {truncated} articles")
 
     db.close()
     console.print("\n[bold green]Pipeline complete![/bold green]")
@@ -292,7 +297,7 @@ def podcast(
     ] = None,
     config_path: Annotated[Path | None, typer.Option("--config")] = None,
 ):
-    """Generate a NotebookLM podcast. Weekly (default) or on-demand with --articles."""
+    """Generate a podcast. Weekly (default) or on-demand with --articles."""
     config = load_config(config_path)
     try:
         from ai_pulse.outputs.podcast import generate_podcast
@@ -339,7 +344,7 @@ def archive(config_path: Annotated[Path | None, typer.Option("--config")] = None
         if pod_path:
             console.print(f"  Podcast: {pod_path}")
     except ImportError:
-        console.print("  [yellow]Skipping podcast (notebooklm-py not installed)[/yellow]")
+        console.print("  [yellow]Skipping podcast (dependencies not installed)[/yellow]")
 
     # Delete articles older than current week start
     deleted = db.delete_old_articles(before=week_start)

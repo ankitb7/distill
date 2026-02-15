@@ -1,43 +1,47 @@
 {% extends "base.html" %}
 {% block title %}Podcasts — AI Pulse{% endblock %}
 {% block content %}
-<h2>Weekly Podcasts</h2>
+<div class="page-header">
+    <h2>Podcasts</h2>
+    <p>AI-generated audio digests of your top articles.</p>
+</div>
 
 {% if message %}
-<p><mark>{{ message }}</mark></p>
+<div class="flash flash-info">{{ message }}</div>
 {% endif %}
 
-<div class="grid">
-    <div>
+<div class="podcast-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
         <form method="post" action="/podcasts/generate">
-            <button type="submit">Generate Weekly Podcast</button>
-            <small>Top articles + all manually added articles this week</small>
+            <button type="submit" style="width: 100%; margin-bottom: 0.5rem;">Generate Weekly Podcast</button>
+            <small style="color: var(--text-muted);">Top articles + all manually added articles this week</small>
         </form>
     </div>
-    <div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
         <form method="post" action="/podcasts/generate">
-            <input type="text" name="article_ids" placeholder="Article IDs (e.g. 12,45,78)" />
-            <button type="submit" class="secondary">Generate On-Demand</button>
-            <small>Create a podcast from specific articles by ID</small>
+            <input type="text" name="article_ids" placeholder="Article IDs (e.g. 12, 45, 78)" style="margin-bottom: 0.5rem;" />
+            <button type="submit" class="secondary" style="width: 100%; margin-bottom: 0.5rem;">Generate On-Demand</button>
+            <small style="color: var(--text-muted);">Create a podcast from specific articles by ID</small>
         </form>
     </div>
 </div>
 
 {% if podcasts %}
+<div class="table-wrap">
 <table>
     <thead>
         <tr>
             <th>Week</th>
             <th>Articles</th>
             <th>Created</th>
-            <th></th>
+            <th>Listen</th>
         </tr>
     </thead>
     <tbody>
         {% for p in podcasts %}
         <tr>
             <td><strong>{{ p.week_label }}</strong></td>
-            <td>{{ p.article_count }}</td>
+            <td class="mono">{{ p.article_count }}</td>
             <td>{{ p.created_at[:10] }}</td>
             <td>
                 {% if p.podcast_path and p.podcast_path.endswith('.mp3') %}
@@ -45,27 +49,39 @@
                     <source src="/podcast-file/{{ p.week_label }}" type="audio/mpeg">
                 </audio>
                 {% elif p.podcast_path %}
-                <a href="/podcast-file/{{ p.week_label }}">Download source</a>
+                <a href="/podcast-file/{{ p.week_label }}">Download</a>
                 {% else %}
-                <span style="color: var(--pico-muted-color);">Not generated</span>
+                <span style="color: var(--text-muted);">—</span>
                 {% endif %}
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 {% else %}
-<p>No podcasts yet. Use the button above or run <code>ai-pulse podcast</code>.</p>
+<div class="empty-state">
+    <p>No podcasts yet.</p>
+    <p>Use the button above or run <code>ai-pulse podcast</code>.</p>
+</div>
 {% endif %}
 
-<details>
+<details style="margin-top: 1.5rem;">
     <summary>How podcasts work</summary>
-    <p>Podcasts are generated using NotebookLM from your top-scoring articles.
-    Manually added articles (via Add Links) are <strong>always included</strong> in weekly podcasts.</p>
-    <p>CLI usage:</p>
-    <ul>
-        <li><code>ai-pulse podcast</code> — weekly podcast (top articles + manual)</li>
-        <li><code>ai-pulse podcast --articles 1,2,3</code> — on-demand with specific articles</li>
-    </ul>
+    <div style="padding-top: 0.5rem; font-size: 0.9rem; color: var(--text);">
+        <p>Podcasts are generated using Claude (script) + edge-tts (audio).
+        Manually added articles (via Add Links) are <strong>always included</strong> in weekly podcasts.
+        Article content is fetched on-demand from original URLs — nothing is stored permanently.</p>
+        <p style="margin-bottom: 0.25rem;">CLI usage:</p>
+        <ul style="margin-top: 0;">
+            <li><code>ai-pulse podcast</code> — weekly (top articles + manual)</li>
+            <li><code>ai-pulse podcast --articles 1,2,3</code> — on-demand</li>
+        </ul>
+        <p style="margin-bottom: 0.25rem;">TTS providers:</p>
+        <ul style="margin-top: 0;">
+            <li><strong>edge-tts</strong> (default) — free, no API key needed</li>
+            <li><strong>openai</strong> — higher quality, requires <code>OPENAI_API_KEY</code></li>
+        </ul>
+    </div>
 </details>
 {% endblock %}

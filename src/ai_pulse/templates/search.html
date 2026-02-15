@@ -1,60 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Search — AI Pulse{% endblock %}
 {% block content %}
-<h2>Topic Search</h2>
-<p>Find the best articles on any topic from across the web.</p>
+<div class="page-header">
+    <h2>Topic Search</h2>
+    <p>Find the best articles on any topic from across the web.</p>
+</div>
 
 <form method="post" action="/search">
-    <div class="grid">
-        <input type="text" name="query" value="{{ query }}" placeholder="e.g. agentic engineering, RAG patterns, Claude Code" autofocus />
-        <button type="submit">Search</button>
+    <div class="search-bar" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+        <input type="text" name="query" value="{{ query }}" placeholder="e.g. agentic engineering, RAG patterns, Claude Code" autofocus style="flex: 1;" />
+        <button type="submit" style="white-space: nowrap;">Search</button>
     </div>
 </form>
 
 {% if added %}
-<p><mark>Added: {{ added }}</mark></p>
+<div class="flash flash-success">Added: {{ added }}</div>
 {% endif %}
 
 {% if results is not none %}
     {% if results %}
-    <table>
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Article</th>
-                <th>Source</th>
-                <th>Points</th>
-                <th>Date</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for r in results %}
-            <tr>
-                <td>{{ loop.index }}</td>
-                <td>
-                    <a href="{{ r.url }}" target="_blank">{{ r.title }}</a>
-                    {% if r.author %}
-                    <div class="article-meta">{{ r.author }}</div>
-                    {% endif %}
-                </td>
-                <td><span class="source-badge">{{ r.source }}</span></td>
-                <td>{{ r.points }}</td>
-                <td>{{ r.date }}</td>
-                <td>
-                    <form method="post" action="/search/add" style="margin:0">
-                        <input type="hidden" name="url" value="{{ r.url }}" />
-                        <input type="hidden" name="title" value="{{ r.title }}" />
-                        <input type="hidden" name="query" value="{{ query }}" />
-                        <button type="submit" class="outline secondary" style="padding: 4px 12px; margin: 0;">+ Add</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <ul class="article-list">
+        {% for r in results %}
+        <li class="article-row">
+            <span class="article-rank">{{ loop.index }}</span>
+            <div class="article-body">
+                <a href="{{ r.url }}" target="_blank" class="article-title">{{ r.title }}</a>
+                <div class="article-meta">
+                    {% if r.author %}<span>{{ r.author }}</span>{% endif %}
+                    <span class="source-badge" data-source="{{ r.source|lower|replace(' ', '') }}">{{ r.source }}</span>
+                    {% if r.date %}<span>{{ r.date }}</span>{% endif %}
+                    {% if r.points %}<span class="points-badge">{{ r.points }} pts</span>{% endif %}
+                </div>
+            </div>
+            <form method="post" action="/search/add" style="margin:0; flex-shrink: 0;">
+                <input type="hidden" name="url" value="{{ r.url }}" />
+                <input type="hidden" name="title" value="{{ r.title }}" />
+                <input type="hidden" name="query" value="{{ query }}" />
+                <button type="submit" class="outline secondary" style="padding: 4px 12px; margin: 0; font-size: 0.8rem;">+ Add</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
     {% else %}
-    <p>No results found for "{{ query }}".</p>
+    <div class="empty-state">
+        <p>No results found for "{{ query }}".</p>
+    </div>
     {% endif %}
 {% endif %}
 {% endblock %}
