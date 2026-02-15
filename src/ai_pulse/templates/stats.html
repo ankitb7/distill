@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Stats — AI Pulse{% endblock %}
+{% block content %}
+<h2>Database Stats</h2>
+
+<div class="grid">
+    <article>
+        <header>Total Articles</header>
+        <h3>{{ stats.total_articles }}</h3>
+    </article>
+    <article>
+        <header>Unique</header>
+        <h3>{{ stats.unique_articles }}</h3>
+    </article>
+    <article>
+        <header>With Content</header>
+        <h3>{{ stats.with_content }}</h3>
+    </article>
+    <article>
+        <header>Scored</header>
+        <h3>{{ stats.scored }}</h3>
+    </article>
+    <article>
+        <header>Duplicates</header>
+        <h3>{{ stats.duplicates }}</h3>
+    </article>
+</div>
+
+{% if stats.by_source %}
+<h3>By Source</h3>
+<table>
+    <thead>
+        <tr><th>Source</th><th>Count</th></tr>
+    </thead>
+    <tbody>
+        {% for source, count in stats.by_source.items() %}
+        <tr>
+            <td><span class="source-badge">{{ source }}</span></td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

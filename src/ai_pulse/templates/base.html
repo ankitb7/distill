@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}AI Pulse{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        :root {
+            --pico-font-size: 16px;
+        }
+        .score-bar {
+            display: inline-block;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--pico-primary);
+        }
+        .source-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--pico-secondary-background);
+            color: var(--pico-secondary);
+        }
+        .article-meta {
+            font-size: 0.85rem;
+            color: var(--pico-muted-color);
+        }
+        .score-detail {
+            font-size: 0.8rem;
+            color: var(--pico-muted-color);
+        }
+        nav ul li strong {
+            color: var(--pico-primary);
+        }
+    </style>
+</head>
+<body>
+    <nav class="container">
+        <ul>
+            <li><strong>AI Pulse</strong></li>
+        </ul>
+        <ul>
+            <li><a href="/">Articles</a></li>
+            <li><a href="/search">Search</a></li>
+            <li><a href="/add">Add Links</a></li>
+            <li><a href="/digests">Digests</a></li>
+            <li><a href="/podcasts">Podcasts</a></li>
+            <li><a href="/stats">Stats</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="container">
+        <small>AI Pulse — Article curation powered by Claude</small>
+    </footer>
+</body>
+</html>

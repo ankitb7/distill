@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title }} — AI Pulse{% endblock %}
+{% block content %}
+<article>
+    <header>
+        <h2>{{ article.title }}</h2>
+        <div class="article-meta">
+            {% if article.author %}<strong>{{ article.author }}</strong> · {% endif %}
+            <span class="source-badge">{{ article.source.value }}</span>
+            {% if article.published_at %} · {{ article.published_at.strftime('%Y-%m-%d') }}{% endif %}
+            {% if article.points %} · {{ article.points }} points{% endif %}
+            {% if article.comment_count %} · {{ article.comment_count }} comments{% endif %}
+        </div>
+        <a href="{{ article.url }}" target="_blank">Open original →</a>
+    </header>
+
+    {% if score and score.composite_score > 0 %}
+    <details open>
+        <summary>Score: {{ "%.2f"|format(score.composite_score) }}</summary>
+        <table>
+            <tr><td>Engagement</td><td>{{ "%.2f"|format(score.engagement_score) }}</td></tr>
+            <tr><td>Technical Depth</td><td>{{ "%.2f"|format(score.technical_depth) }}</td></tr>
+            <tr><td>Novelty</td><td>{{ "%.2f"|format(score.novelty) }}</td></tr>
+            <tr><td>Applicability</td><td>{{ "%.2f"|format(score.applicability) }}</td></tr>
+        </table>
+        {% if score.reasoning %}
+        <blockquote>{{ score.reasoning }}</blockquote>
+        {% endif %}
+    </details>
+    {% endif %}
+
+    {% if article.content_text %}
+    <section>
+        <h3>Content</h3>
+        <div>{{ article.content_text[:5000] }}</div>
+        {% if article.content_text|length > 5000 %}
+        <p><em>Content truncated. <a href="{{ article.url }}" target="_blank">Read full article →</a></em></p>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if article.tags %}
+    <section>
+        {% for tag in article.tags %}
+        <span class="source-badge">{{ tag }}</span>
+        {% endfor %}
+    </section>
+    {% endif %}
+</article>
+{% endblock %}

@@ -1,0 +1,139 @@
+database:
+  path: ai_pulse.db
+
+output:
+  dir: output
+
+sources:
+  hackernews:
+    enabled: true
+    keywords:
+      # Core AI practitioner terms
+      - AI coding
+      - AI agent
+      - Claude Code
+      - vibe coding
+      - agentic engineering
+      - coding agent
+      - AI workflow
+      - LLM integration
+      - AI pair programming
+      # Broader but still relevant
+      - LLM
+      - Claude
+      - GPT
+      - RAG
+      - fine-tuning
+      - AI engineering
+      - prompt engineering
+      - AI productivity
+      - AI developer tools
+      - MCP server
+    min_points: 10
+    max_results: 50
+
+  rss:
+    enabled: true
+    feeds:
+      # Practitioner-focused AI + engineering
+      - url: https://simonwillison.net/atom/entries/
+        name: Simon Willison
+        max_results: 10
+      - url: https://addyosmani.com/feed.xml
+        name: Addy Osmani
+      - url: https://blog.pragmaticengineer.com/rss/
+        name: Gergely Orosz
+      - url: https://newsletter.pragmaticengineer.com/feed
+        name: Pragmatic Engineer Newsletter
+      - url: https://mitchellh.com/feed.xml
+        name: Mitchell Hashimoto
+      - url: https://martinfowler.com/feed.atom
+        name: Martin Fowler
+      - url: https://www.latent.space/feed
+        name: Latent Space
+      - url: https://stripe.dev/blog/rss.xml
+        name: Stripe Engineering
+      - url: https://www.pathtostaff.com/feed
+        name: Path to Staff
+      # AI research that's practical
+      - url: https://www.deeplearning.ai/the-batch/feed/
+        name: Andrew Ng - The Batch
+      - url: https://lilianweng.github.io/index.xml
+        name: Lilian Weng
+      - url: https://karpathy.github.io/feed.xml
+        name: Andrej Karpathy
+      # AI industry
+      - url: https://www.anthropic.com/feed.xml
+        name: Anthropic Blog
+      - url: https://openai.com/blog/rss.xml
+        name: OpenAI Blog
+      - url: https://jack-clark.net/feed/
+        name: Jack Clark - Import AI
+
+  reddit:
+    enabled: false
+    subreddits:
+      - MachineLearning
+      - LocalLLaMA
+      - programming
+      - ExperiencedDevs
+    min_score: 15
+    max_results: 30
+
+  devto:
+    enabled: false
+    tags:
+      - ai
+      - machinelearning
+      - llm
+      - generativeai
+      - aitools
+    min_reactions: 10
+    max_results: 30
+
+  arxiv:
+    enabled: false
+    categories:
+      - cs.AI
+      - cs.LG
+      - cs.CL
+      - cs.SE
+    keywords:
+      - large language model
+      - LLM agent
+      - code generation
+      - retrieval augmented
+      - AI agent
+      - software engineering
+    max_results: 20
+
+  newsapi:
+    enabled: false
+    queries:
+      - AI coding agent
+      - LLM developer tools
+      - AI software engineering
+    max_results: 20
+
+scoring:
+  model: claude-sonnet-4-5-20250929
+  batch_size: 5
+  min_engagement_for_llm: 5
+  weights:
+    engagement: 0.15
+    technical_depth: 0.20
+    novelty: 0.25
+    applicability: 0.40
+
+dedup:
+  title_similarity_threshold: 0.85
+  embedding_similarity_threshold: 0.88
+  embedding_model: all-MiniLM-L6-v2
+
+web:
+  host: 0.0.0.0
+  port: 8585
+
+podcast:
+  day: sunday
+  top_n: 20

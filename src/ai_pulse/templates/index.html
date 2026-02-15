@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}AI Pulse — Articles{% endblock %}
+{% block content %}
+<h2>Top Articles</h2>
+
+<form method="get" action="/">
+    <div class="grid">
+        <select name="source" onchange="this.form.submit()">
+            <option value="">All Sources</option>
+            {% for s in sources %}
+            <option value="{{ s }}" {% if source_filter == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+        <select name="limit" onchange="this.form.submit()">
+            {% for n in [20, 50, 100] %}
+            <option value="{{ n }}" {% if limit == n %}selected{% endif %}>Top {{ n }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Article</th>
+            <th>Source</th>
+            <th>Score</th>
+            <th>Points</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for article, score in articles %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>
+                <a href="{{ article.url }}" target="_blank">{{ article.title }}</a>
+                <div class="article-meta">
+                    {% if article.author %}{{ article.author }} · {% endif %}
+                    {% if article.published_at %}{{ article.published_at.strftime('%Y-%m-%d') }}{% endif %}
+                </div>
+            </td>
+            <td><span class="source-badge">{{ article.source.value }}</span></td>
+            <td>
+                {% if score.composite_score > 0 %}
+                <strong>{{ "%.2f"|format(score.composite_score) }}</strong>
+                <div class="score-bar" style="width: {{ (score.composite_score * 100)|int }}px"></div>
+                <div class="score-detail">
+                    D:{{ "%.1f"|format(score.technical_depth) }}
+                    N:{{ "%.1f"|format(score.novelty) }}
+                    A:{{ "%.1f"|format(score.applicability) }}
+                </div>
+                {% else %}—{% endif %}
+            </td>
+            <td>{{ article.points or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not articles %}
+<p>No articles found. Run <code>ai-pulse run</code> to collect and score articles.</p>
+{% endif %}
+{% endblock %}

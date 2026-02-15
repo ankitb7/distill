@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Search — AI Pulse{% endblock %}
+{% block content %}
+<h2>Topic Search</h2>
+<p>Find the best articles on any topic from across the web.</p>
+
+<form method="post" action="/search">
+    <div class="grid">
+        <input type="text" name="query" value="{{ query }}" placeholder="e.g. agentic engineering, RAG patterns, Claude Code" autofocus />
+        <button type="submit">Search</button>
+    </div>
+</form>
+
+{% if added %}
+<p><mark>Added: {{ added }}</mark></p>
+{% endif %}
+
+{% if results is not none %}
+    {% if results %}
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Article</th>
+                <th>Source</th>
+                <th>Points</th>
+                <th>Date</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ r.url }}" target="_blank">{{ r.title }}</a>
+                    {% if r.author %}
+                    <div class="article-meta">{{ r.author }}</div>
+                    {% endif %}
+                </td>
+                <td><span class="source-badge">{{ r.source }}</span></td>
+                <td>{{ r.points }}</td>
+                <td>{{ r.date }}</td>
+                <td>
+                    <form method="post" action="/search/add" style="margin:0">
+                        <input type="hidden" name="url" value="{{ r.url }}" />
+                        <input type="hidden" name="title" value="{{ r.title }}" />
+                        <input type="hidden" name="query" value="{{ query }}" />
+                        <button type="submit" class="outline secondary" style="padding: 4px 12px; margin: 0;">+ Add</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No results found for "{{ query }}".</p>
+    {% endif %}
+{% endif %}
+{% endblock %}

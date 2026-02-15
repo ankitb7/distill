@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Add Links — AI Pulse{% endblock %}
+{% block content %}
+<h2>Add Links</h2>
+<p>Drop one URL per line. Content will be fetched and extracted automatically.</p>
+
+<form hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
+    <textarea name="urls" rows="6" placeholder="https://example.com/great-ai-article
+https://another.com/llm-deep-dive
+https://blog.example.com/practical-rag-guide" style="font-family: monospace;"></textarea>
+    <div class="grid">
+        <button type="submit">Add & Extract</button>
+        <div>
+            <span id="spinner" class="htmx-indicator" aria-busy="true">Processing links...</span>
+        </div>
+    </div>
+</form>
+
+<div id="results" style="margin-top: 1rem;">
+    {% if results %}
+    <table>
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Status</th>
+                <th>Title</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <a href="{{ r.url }}" target="_blank">{{ r.url }}</a>
+                </td>
+                <td>
+                    {% if r.status == "added" %}
+                    <span style="color: green;">Added</span>
+                    {% elif r.status == "exists" %}
+                    <span style="color: orange;">Already exists</span>
+                    {% elif r.status == "extracted" %}
+                    <span style="color: green;">Added + extracted</span>
+                    {% else %}
+                    <span style="color: red;">{{ r.status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ r.title or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endblock %}
