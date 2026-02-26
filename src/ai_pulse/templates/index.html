@@ -32,6 +32,7 @@
             <div class="article-meta">
                 {% if article.author %}<span>{{ article.author }}</span>{% endif %}
                 <span class="source-badge" data-source="{{ article.source.value }}">{{ article.source.value }}</span>
+                {% if "manual" in article.tags %}<span class="manual-badge">user pushed</span>{% endif %}
                 {% if article.published_at %}<span>{{ article.published_at.strftime('%b %d') }}</span>{% endif %}
                 {% if article.points %}<span class="points-badge">{{ article.points }} pts</span>{% endif %}
             </div>

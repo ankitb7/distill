@@ -12,6 +12,7 @@ dependencies = [
     { name = "feedparser" },
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "notebooklm-py" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -39,6 +40,7 @@ requires-dist = [
     { name = "feedparser", specifier = ">=6.0" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "notebooklm-py", specifier = ">=0.3.2" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
@@ -972,6 +974,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/51/63fe664f3908c97be9d2e4f1158eb633317598cfa6e1fc14af5383f17512/networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509", size = 2517025, upload-time = "2025-12-08T17:02:39.908Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl", hash = "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762", size = 2068504, upload-time = "2025-12-08T17:02:38.159Z" },
+]
+
+[[package]]
+name = "notebooklm-py"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "httpx" },
+    { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/39/5e61b38b6d4dba5077365f723b91b1942c475bec77dbdad89fc6c585698e/notebooklm_py-0.3.2.tar.gz", hash = "sha256:bcb509845a5b44e70d9f3cd480edee49d572b13a563903e11bd838e7cac8c05d", size = 7931484, upload-time = "2026-01-26T15:46:57.66Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/f1/171354bf2e350ef68c6aa516651455ab3ba4337f34368d1814086291eef9/notebooklm_py-0.3.2-py3-none-any.whl", hash = "sha256:15f4831083b240e7513ce217107fefdcfee5140051390e5a3ae111a659a528c2", size = 154065, upload-time = "2026-01-26T15:46:55.914Z" },
 ]
 
 [[package]]

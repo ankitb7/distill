@@ -121,6 +121,23 @@ async def score_articles(db: Database, config: dict) -> int:
 
     scored_count = 0
 
+    # Manually added articles get the highest score automatically
+    manual = [a for a in unscored if "manual" in (a.tags or [])]
+    manual_ids = {a.id for a in manual}
+    for article in manual:
+        score = ScoreBreakdown(
+            engagement_score=1.0,
+            technical_depth=1.0,
+            novelty=1.0,
+            applicability=1.0,
+            composite_score=1.0,
+            reasoning="Manually added — auto-scored highest",
+        )
+        db.insert_score(article.id, score)
+        scored_count += 1
+
+    unscored = [a for a in unscored if a.id not in manual_ids]
+
     if has_api_key:
         llm_eligible = [
             a for a in unscored

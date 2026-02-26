@@ -277,17 +277,13 @@
         .source-badge { background: var(--accent-dim); color: var(--accent); }
         .source-badge[data-source="hackernews"] { background: rgba(255, 102, 0, 0.12); color: #ff8533; }
         .source-badge[data-source="rss"] { background: rgba(74, 222, 128, 0.12); color: #4ade80; }
-        .source-badge[data-source="reddit"] { background: rgba(255, 69, 0, 0.12); color: #ff6833; }
         .source-badge[data-source="devto"] { background: rgba(0, 112, 243, 0.12); color: #3399ff; }
         .source-badge[data-source="arxiv"] { background: rgba(179, 27, 27, 0.12); color: #e04444; }
-        .source-badge[data-source="newsapi"] { background: rgba(156, 39, 176, 0.12); color: #bb6bd9; }
         [data-theme="light"] .source-badge { background: rgba(74, 108, 247, 0.08); color: #3958d9; }
         [data-theme="light"] .source-badge[data-source="hackernews"] { background: rgba(255, 102, 0, 0.08); color: #c45500; }
         [data-theme="light"] .source-badge[data-source="rss"] { background: rgba(22, 163, 74, 0.08); color: #15803d; }
-        [data-theme="light"] .source-badge[data-source="reddit"] { background: rgba(255, 69, 0, 0.08); color: #c44500; }
         [data-theme="light"] .source-badge[data-source="devto"] { background: rgba(0, 112, 243, 0.08); color: #0059c2; }
         [data-theme="light"] .source-badge[data-source="arxiv"] { background: rgba(179, 27, 27, 0.08); color: #b31b1b; }
-        [data-theme="light"] .source-badge[data-source="newsapi"] { background: rgba(156, 39, 176, 0.08); color: #8e24aa; }
 
         /* Tag badges */
         .tag-badge {
@@ -298,6 +294,22 @@
             font-family: 'JetBrains Mono', monospace;
             background: var(--surface-hover);
             color: var(--text-muted);
+        }
+
+        .manual-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            background: rgba(234, 179, 8, 0.12);
+            color: #eab308;
+        }
+        [data-theme="light"] .manual-badge {
+            background: rgba(202, 138, 4, 0.1);
+            color: #a16207;
         }
 
         /* Stat cards */
@@ -393,6 +405,42 @@
         /* Audio player */
         audio { height: 32px; }
         [data-theme="dark"] audio { filter: invert(1) hue-rotate(180deg); }
+
+        /* Generation status banner */
+        .gen-status {
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .gen-status-running {
+            background: var(--accent-dim);
+            border: 1px solid rgba(108, 138, 255, 0.2);
+            color: var(--accent);
+        }
+        .gen-status-done {
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            color: var(--green);
+        }
+        .gen-status-error {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            color: var(--red);
+        }
+        .gen-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Empty state */
         .empty-state {

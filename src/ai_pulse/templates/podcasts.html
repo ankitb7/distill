@@ -6,21 +6,36 @@
     <p>AI-generated audio digests of your top articles.</p>
 </div>
 
+<div id="gen-poll">
+{% if gen_state and gen_state.running %}
+<div class="gen-status gen-status-running" hx-get="/podcasts/status" hx-trigger="every 10s" hx-target="#gen-poll" hx-swap="innerHTML">
+    <span class="gen-spinner"></span>{{ gen_state.message }}
+</div>
+{% endif %}
+</div>
+
 {% if message %}
 <div class="flash flash-info">{{ message }}</div>
 {% endif %}
 
 <div class="podcast-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
-        <form method="post" action="/podcasts/generate">
-            <button type="submit" style="width: 100%; margin-bottom: 0.5rem;">Generate Weekly Podcast</button>
-            <small style="color: var(--text-muted);">Top articles + all manually added articles this week</small>
-        </form>
+        <button hx-post="/podcasts/generate" hx-target="#gen-poll" hx-swap="innerHTML"
+                style="width: 100%; margin-bottom: 0.5rem;"
+                {% if gen_state and gen_state.running %}disabled{% endif %}>
+            Generate Weekly Podcast
+        </button>
+        <small style="color: var(--text-muted);">Top articles + all manually added articles this week</small>
     </div>
     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
-        <form method="post" action="/podcasts/generate">
-            <input type="text" name="article_ids" placeholder="Article IDs (e.g. 12, 45, 78)" style="margin-bottom: 0.5rem;" />
-            <button type="submit" class="secondary" style="width: 100%; margin-bottom: 0.5rem;">Generate On-Demand</button>
+        <form>
+            <input type="text" id="article-ids-input" name="article_ids" placeholder="Article IDs (e.g. 12, 45, 78)" style="margin-bottom: 0.5rem;" />
+            <button type="button" class="secondary" style="width: 100%; margin-bottom: 0.5rem;"
+                    hx-post="/podcasts/generate" hx-target="#gen-poll" hx-swap="innerHTML"
+                    hx-include="#article-ids-input"
+                    {% if gen_state and gen_state.running %}disabled{% endif %}>
+                Generate On-Demand
+            </button>
             <small style="color: var(--text-muted);">Create a podcast from specific articles by ID</small>
         </form>
     </div>
@@ -77,11 +92,7 @@
             <li><code>ai-pulse podcast</code> — weekly (top articles + manual)</li>
             <li><code>ai-pulse podcast --articles 1,2,3</code> — on-demand</li>
         </ul>
-        <p style="margin-bottom: 0.25rem;">TTS providers:</p>
-        <ul style="margin-top: 0;">
-            <li><strong>edge-tts</strong> (default) — free, no API key needed</li>
-            <li><strong>openai</strong> — higher quality, requires <code>OPENAI_API_KEY</code></li>
-        </ul>
+        <p style="margin-bottom: 0.25rem;">TTS: <strong>edge-tts</strong> (free Microsoft neural voices, no API key needed)</p>
     </div>
 </details>
 {% endblock %}

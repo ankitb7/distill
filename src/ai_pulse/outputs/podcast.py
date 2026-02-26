@@ -1,7 +1,8 @@
-"""Podcast generation using Claude (script) + edge-tts or OpenAI TTS (audio)."""
+"""Podcast generation with pluggable providers: notebooklm (default) or edge-tts."""
 
 import os
 import tempfile
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -43,8 +44,59 @@ def _collect_ondemand_articles(
     return label, articles
 
 
+def _build_source_text(
+    articles: list[tuple[Article, ScoreBreakdown]],
+    article_texts: dict[int, str],
+    label: str,
+) -> str:
+    lines = [
+        f"# AI Pulse Weekly Briefing — {label}",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d')}",
+        "",
+        "This document contains the top AI and engineering articles "
+        "curated this week for senior software developers who heavily use "
+        "AI coding agents (Claude Code, Cursor, etc.) in daily work. "
+        "Cover each article focusing on practical implications, what's "
+        "genuinely novel, and key technical insights a practitioner can "
+        "apply immediately.",
+        "",
+    ]
+
+    for rank, (article, score) in enumerate(articles, 1):
+        manual_tag = " [MUST COVER]" if "manual" in (article.tags or []) else ""
+        lines.append(f"## {rank}. {article.title}{manual_tag}")
+        lines.append("")
+        if article.author:
+            lines.append(f"By: {article.author}")
+        lines.append(f"Source: {article.source.value}")
+        if score.composite_score > 0:
+            lines.append(f"Quality Score: {score.composite_score:.2f}")
+        lines.append("")
+
+        text = article_texts.get(article.id, "")
+        if text:
+            lines.append(text[:3000])
+        elif article.content_text:
+            lines.append(article.content_text[:3000])
+        elif article.summary:
+            lines.append(article.summary)
+
+        if score.reasoning:
+            lines.append("")
+            lines.append(f"Why this matters: {score.reasoning}")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Content fetching (shared by edge-tts and notebooklm providers)
+# ---------------------------------------------------------------------------
+
+
 async def _fetch_article_content(url: str) -> str | None:
-    """Fetch and extract article content on-demand. Returns text or None."""
     try:
         import trafilatura
 
@@ -68,7 +120,6 @@ async def _fetch_article_content(url: str) -> str | None:
 async def _gather_article_texts(
     articles: list[tuple[Article, ScoreBreakdown]],
 ) -> dict[int, str]:
-    """Fetch full content for articles that only have excerpts stored."""
     import asyncio
 
     texts = {}
@@ -77,8 +128,6 @@ async def _gather_article_texts(
     for article, _ in articles:
         if article.content_text and len(article.content_text) > 500:
             texts[article.id] = article.content_text[:3000]
-        elif article.content_text:
-            fetch_tasks[article.id] = article.url
         else:
             fetch_tasks[article.id] = article.url
 
@@ -93,12 +142,74 @@ async def _gather_article_texts(
     return texts
 
 
+# ---------------------------------------------------------------------------
+# Provider: NotebookLM
+# ---------------------------------------------------------------------------
+
+
+async def _generate_notebooklm(
+    articles: list[tuple[Article, ScoreBreakdown]],
+    article_texts: dict[int, str],
+    label: str,
+    output_dir: Path,
+    article_ids: list[int] | None,
+) -> Path:
+    from notebooklm import NotebookLMClient
+
+    title = (
+        f"AI Pulse On-Demand — {label}" if article_ids
+        else f"AI Pulse — {label}"
+    )
+
+    source_text = _build_source_text(articles, article_texts, label)
+    source_path = output_dir / f"podcast-source-{label}.md"
+    source_path.write_text(source_text)
+
+    audio_path = output_dir / f"podcast-{label}.mp3"
+
+    async with await NotebookLMClient.from_storage() as client:
+        notebook = await client.notebooks.create(title)
+        nb_id = notebook.id
+
+        await client.sources.add_text(
+            nb_id,
+            title=f"AI Pulse Articles — {label}",
+            content=source_text,
+            wait=True,
+        )
+
+        instructions = (
+            "You are briefing a senior software engineer who uses AI coding "
+            "agents (Claude Code, Cursor) daily. Cover each article focusing "
+            "on practical takeaways, what's genuinely novel, and what the "
+            "listener can apply at work Monday morning. Be direct, skip hype. "
+            "Keep the tone conversational but information-dense."
+        )
+        status = await client.artifacts.generate_audio(
+            nb_id, instructions=instructions
+        )
+
+        print(f"Podcast generation started: {title}")
+        print("Waiting for NotebookLM audio (this takes a few minutes)...")
+        await client.artifacts.wait_for_completion(
+            nb_id, status.task_id, timeout=600.0
+        )
+
+        await client.artifacts.download_audio(nb_id, str(audio_path))
+
+    return audio_path
+
+
+# ---------------------------------------------------------------------------
+# Provider: edge-tts (Claude script + free TTS)
+# ---------------------------------------------------------------------------
+
+
 async def _generate_script(
     articles: list[tuple[Article, ScoreBreakdown]],
     article_texts: dict[int, str],
     label: str,
 ) -> str:
-    """Use Claude to generate a two-host podcast script."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError(
@@ -168,7 +279,6 @@ Write the complete script now:"""
 
 
 def _parse_script(script: str) -> list[tuple[str, str]]:
-    """Parse script into list of (speaker, text) tuples."""
     segments = []
     current_speaker = None
     current_text = []
@@ -202,7 +312,6 @@ async def _tts_edge(
     voice_a: str = "en-US-GuyNeural",
     voice_b: str = "en-US-AriaNeural",
 ):
-    """Generate audio using edge-tts (free, no API key)."""
     import edge_tts
 
     voice_map = {"alex": voice_a, "sarah": voice_b}
@@ -218,49 +327,48 @@ async def _tts_edge(
             await communicate.save(str(seg_path))
             segment_files.append(seg_path)
 
-        # Concatenate MP3 segments (MP3 is a streaming format — concat works)
         with open(output_path, "wb") as out:
             for seg in segment_files:
                 out.write(seg.read_bytes())
 
 
-async def _tts_openai(
-    segments: list[tuple[str, str]],
-    output_path: Path,
-    model: str = "tts-1",
-    voice_a: str = "onyx",
-    voice_b: str = "nova",
-):
-    """Generate audio using OpenAI TTS API (requires OPENAI_API_KEY)."""
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY required for OpenAI TTS provider.")
+async def _generate_edge_tts(
+    articles: list[tuple[Article, ScoreBreakdown]],
+    article_texts: dict[int, str],
+    label: str,
+    output_dir: Path,
+    podcast_config: dict,
+    on_status: Callable[[str], None] | None = None,
+) -> Path:
+    def _status(msg: str):
+        print(msg)
+        if on_status:
+            on_status(msg)
 
-    voice_map = {"alex": voice_a, "sarah": voice_b}
+    _status("Generating podcast script with Claude...")
+    script = await _generate_script(articles, article_texts, label)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        segment_files = []
-        async with httpx.AsyncClient(timeout=60) as client:
-            for i, (speaker, text) in enumerate(segments):
-                if not text.strip():
-                    continue
-                voice = voice_map.get(speaker, voice_a)
-                seg_path = Path(tmpdir) / f"seg_{i:04d}.mp3"
-                resp = await client.post(
-                    "https://api.openai.com/v1/audio/speech",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={"model": model, "input": text, "voice": voice},
-                )
-                resp.raise_for_status()
-                seg_path.write_bytes(resp.content)
-                segment_files.append(seg_path)
+    script_path = output_dir / f"podcast-script-{label}.md"
+    script_path.write_text(script)
 
-        with open(output_path, "wb") as out:
-            for seg in segment_files:
-                out.write(seg.read_bytes())
+    segments = _parse_script(script)
+    if not segments:
+        raise RuntimeError("Failed to parse script into speaker segments")
+    _status(f"Script ready — {len(segments)} dialogue segments")
+
+    audio_path = output_dir / f"podcast-{label}.mp3"
+    _status("Synthesizing audio with edge-tts...")
+
+    voice_a = podcast_config.get("voice_a", "en-US-GuyNeural")
+    voice_b = podcast_config.get("voice_b", "en-US-AriaNeural")
+    await _tts_edge(segments, audio_path, voice_a=voice_a, voice_b=voice_b)
+
+    return audio_path
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
 
 
 async def generate_podcast(
@@ -268,11 +376,18 @@ async def generate_podcast(
     config: dict,
     output_dir: Path,
     article_ids: list[int] | None = None,
+    on_status: "Callable[[str], None] | None" = None,
 ) -> Path | None:
+    def _status(msg: str):
+        print(msg)
+        if on_status:
+            on_status(msg)
+
     podcast_config = config.get("podcast", {})
     top_n = podcast_config.get("top_n", 20)
-    provider = podcast_config.get("provider", "edge-tts")
+    provider = podcast_config.get("provider", "notebooklm")
 
+    _status("Collecting articles...")
     if article_ids:
         label, articles = _collect_ondemand_articles(db, article_ids)
     else:
@@ -282,45 +397,27 @@ async def generate_podcast(
         return None
 
     manual_count = sum(1 for a, _ in articles if "manual" in (a.tags or []))
-    print(f"Podcast: {len(articles)} articles ({manual_count} manually added)")
+    _status(f"Found {len(articles)} articles ({manual_count} manually added)")
 
-    # Fetch full content on-demand (not stored permanently)
-    print("Fetching article content...")
+    _status("Fetching article content...")
     article_texts = await _gather_article_texts(articles)
-    print(f"  Content available for {len(article_texts)}/{len(articles)} articles")
-
-    # Generate script with Claude
-    print("Generating podcast script with Claude...")
-    script = await _generate_script(articles, article_texts, label)
+    _status(f"Content ready for {len(article_texts)}/{len(articles)} articles")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    script_path = output_dir / f"podcast-script-{label}.md"
-    script_path.write_text(script)
-    print(f"  Script saved: {script_path}")
 
-    # Parse script into segments
-    segments = _parse_script(script)
-    if not segments:
-        print("Error: failed to parse script into speaker segments")
-        return None
-    print(f"  {len(segments)} dialogue segments")
-
-    # Generate audio
-    audio_path = output_dir / f"podcast-{label}.mp3"
-    print(f"Generating audio with {provider}...")
-
-    if provider == "openai":
-        openai_model = podcast_config.get("openai_tts_model", "tts-1")
-        openai_voice_a = podcast_config.get("openai_voice_a", "onyx")
-        openai_voice_b = podcast_config.get("openai_voice_b", "nova")
-        await _tts_openai(
-            segments, audio_path,
-            model=openai_model, voice_a=openai_voice_a, voice_b=openai_voice_b,
+    if provider == "notebooklm":
+        _status("Generating podcast with NotebookLM...")
+        audio_path = await _generate_notebooklm(
+            articles, article_texts, label, output_dir, article_ids
+        )
+    elif provider == "edge-tts":
+        _status("Generating podcast script with Claude...")
+        audio_path = await _generate_edge_tts(
+            articles, article_texts, label, output_dir, podcast_config,
+            on_status=on_status,
         )
     else:
-        voice_a = podcast_config.get("voice_a", "en-US-GuyNeural")
-        voice_b = podcast_config.get("voice_b", "en-US-AriaNeural")
-        await _tts_edge(segments, audio_path, voice_a=voice_a, voice_b=voice_b)
+        raise ValueError(f"Unknown podcast provider: {provider!r}. Use: notebooklm, edge-tts")
 
     # Link to digest
     if not article_ids:

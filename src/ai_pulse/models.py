@@ -7,10 +7,8 @@ from pydantic import BaseModel, Field
 class Source(StrEnum):
     HACKERNEWS = "hackernews"
     RSS = "rss"
-    REDDIT = "reddit"
     DEVTO = "devto"
     ARXIV = "arxiv"
-    NEWSAPI = "newsapi"
 
 
 class CollectedArticle(BaseModel):

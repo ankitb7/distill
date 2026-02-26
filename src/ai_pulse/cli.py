@@ -81,18 +81,14 @@ async def _collect_async(db: Database, config: dict, source_filter: str | None =
         ArxivCollector,
         DevToCollector,
         HackerNewsCollector,
-        NewsAPICollector,
-        RedditCollector,
         RSSCollector,
     )
 
     collectors = [
         HackerNewsCollector(),
         RSSCollector(),
-        RedditCollector(),
         DevToCollector(),
         ArxivCollector(),
-        NewsAPICollector(),
     ]
 
     if source_filter:

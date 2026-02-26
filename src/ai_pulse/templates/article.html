@@ -6,6 +6,7 @@
     <div class="article-meta" style="margin-top: 0.5rem;">
         {% if article.author %}<strong>{{ article.author }}</strong>{% endif %}
         <span class="source-badge" data-source="{{ article.source.value }}">{{ article.source.value }}</span>
+        {% if "manual" in article.tags %}<span class="manual-badge">user pushed</span>{% endif %}
         {% if article.published_at %}<span>{{ article.published_at.strftime('%b %d, %Y') }}</span>{% endif %}
         {% if article.points %}<span class="points-badge">{{ article.points }} pts</span>{% endif %}
         {% if article.comment_count %}<span class="points-badge">{{ article.comment_count }} comments</span>{% endif %}

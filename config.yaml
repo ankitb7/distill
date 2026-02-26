@@ -70,16 +70,6 @@ sources:
       - url: https://jack-clark.net/feed/
         name: Jack Clark - Import AI
 
-  reddit:
-    enabled: false
-    subreddits:
-      - MachineLearning
-      - LocalLLaMA
-      - programming
-      - ExperiencedDevs
-    min_score: 15
-    max_results: 30
-
   devto:
     enabled: false
     tags:
@@ -107,14 +97,6 @@ sources:
       - software engineering
     max_results: 20
 
-  newsapi:
-    enabled: false
-    queries:
-      - AI coding agent
-      - LLM developer tools
-      - AI software engineering
-    max_results: 20
-
 scoring:
   model: claude-sonnet-4-5-20250929
   batch_size: 5
@@ -137,11 +119,7 @@ web:
 podcast:
   day: sunday
   top_n: 20
-  provider: edge-tts  # edge-tts (free, no key) or openai (requires OPENAI_API_KEY)
-  # Edge TTS voices (free, Microsoft neural voices)
+  provider: notebooklm  # notebooklm (default), edge-tts (free, no key), or openai (requires OPENAI_API_KEY)
+  # Edge TTS voices (if provider: edge-tts)
   voice_a: en-US-GuyNeural
   voice_b: en-US-AriaNeural
-  # OpenAI TTS (if provider: openai)
-  # openai_tts_model: tts-1
-  # openai_voice_a: onyx
-  # openai_voice_b: nova

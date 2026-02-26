@@ -14,7 +14,12 @@ wheels/
 
 # Data
 *.db
+*.db-shm
+*.db-wal
 output/
+
+# IDE
+.idea/
 
 # OS
 .DS_Store
