@@ -4,6 +4,8 @@ AI article curation and podcast generator for senior engineers focused on AI ado
 
 Aggregates articles from multiple sources, extracts content, deduplicates, scores with Claude as an LLM judge, generates weekly digests, and produces two-host AI podcasts — all browsable through a local web dashboard.
 
+![AI Pulse Dashboard](docs/screenshot.png)
+
 ## How It Works
 
 ```
