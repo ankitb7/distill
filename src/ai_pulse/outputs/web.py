@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ai_pulse.config import get_db_path
@@ -11,7 +11,7 @@ from ai_pulse.models import CollectedArticle, ScoreBreakdown, Source
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
-_gen_state: dict = {"running": False, "message": "", "done": False, "error": False}
+_generating: bool = False
 
 
 def create_app(config: dict) -> FastAPI:
@@ -124,92 +124,44 @@ def create_app(config: dict) -> FastAPI:
         ).fetchall()
         podcasts = [dict(r) for r in rows]
         db.close()
-        return templates.TemplateResponse(
-            request, "podcasts.html",
-            {"podcasts": podcasts, "gen_state": _gen_state},
-        )
-
-    @app.post("/podcasts/generate", response_class=HTMLResponse)
-    async def generate_podcast_now(request: Request, article_ids: str = Form("")):
-        if _gen_state["running"]:
-            return HTMLResponse(
-                '<div class="gen-status gen-status-running">'
-                '<span class="gen-spinner"></span>'
-                f'{_gen_state["message"]}'
-                "</div>",
+        provider = config.get("podcast", {}).get("provider", "notebooklm")
+        ctx = {"podcasts": podcasts, "generating": _generating, "provider": provider}
+        if _generating:
+            time_est = "10-15 minutes" if provider == "notebooklm" else "3-5 minutes"
+            ctx["message"] = (
+                f"Podcast generation in progress ({provider})."
+                f" Refresh in {time_est}."
             )
+        return templates.TemplateResponse(request, "podcasts.html", ctx)
 
-        from ai_pulse.config import get_output_dir
-        from ai_pulse.outputs.podcast import generate_podcast
+    @app.post("/podcasts/generate")
+    async def generate_podcast_now(article_ids: str = Form("")):
+        global _generating
+        if not _generating:
+            from ai_pulse.config import get_output_dir
+            from ai_pulse.outputs.podcast import generate_podcast
 
-        ids = None
-        if article_ids.strip():
-            ids = [int(x.strip()) for x in article_ids.split(",") if x.strip()]
+            ids = None
+            if article_ids.strip():
+                ids = [int(x.strip()) for x in article_ids.split(",") if x.strip()]
 
-        _gen_state.update(running=True, message="Starting...", done=False, error=False)
+            _generating = True
 
-        async def _run():
-            db = get_db()
-            try:
-                output_dir = get_output_dir(config)
-                path = await generate_podcast(
-                    db, config, output_dir, article_ids=ids,
-                    on_status=lambda msg: _gen_state.update(message=msg),
-                )
-                if path:
-                    _gen_state.update(
-                        running=False, done=True, error=False,
-                        message=f"Podcast ready: {path.name}",
-                    )
-                else:
-                    _gen_state.update(
-                        running=False, done=True, error=True,
-                        message="No articles found to generate podcast",
-                    )
-            except Exception as e:
-                _gen_state.update(
-                    running=False, done=True, error=True,
-                    message=f"Error: {e}",
-                )
-            finally:
-                db.close()
+            async def _run():
+                global _generating
+                db = get_db()
+                try:
+                    output_dir = get_output_dir(config)
+                    await generate_podcast(db, config, output_dir, article_ids=ids)
+                except Exception as e:
+                    print(f"Podcast generation failed: {e}")
+                finally:
+                    _generating = False
+                    db.close()
 
-        asyncio.create_task(_run())
+            asyncio.create_task(_run())
 
-        return HTMLResponse(
-            '<div id="gen-poll" hx-get="/podcasts/status" '
-            'hx-trigger="every 10s" hx-swap="outerHTML">'
-            '<div class="gen-status gen-status-running">'
-            '<span class="gen-spinner"></span>Starting...'
-            "</div></div>",
-        )
-
-    @app.get("/podcasts/status", response_class=HTMLResponse)
-    async def podcast_status():
-        if _gen_state["running"]:
-            return HTMLResponse(
-                '<div id="gen-poll" hx-get="/podcasts/status" '
-                'hx-trigger="every 10s" hx-swap="outerHTML">'
-                '<div class="gen-status gen-status-running">'
-                f'<span class="gen-spinner"></span>{_gen_state["message"]}'
-                "</div></div>",
-            )
-
-        if _gen_state["done"]:
-            is_error = _gen_state["error"]
-            css = "gen-status-error" if is_error else "gen-status-done"
-            msg = _gen_state["message"]
-            refresh = "" if is_error else (
-                ' <a href="/podcasts" style="margin-left: 0.5rem; '
-                'color: inherit; text-decoration: underline;">Refresh page</a>'
-            )
-            _gen_state.update(running=False, done=False, message="", error=False)
-            return HTMLResponse(
-                f'<div id="gen-poll"><div class="gen-status {css}">'
-                f"{msg}{refresh}</div></div>",
-            )
-
-        return HTMLResponse('<div id="gen-poll"></div>')
+        return RedirectResponse("/podcasts", status_code=303)
 
     @app.get("/podcast-file/{week_label}")
     async def podcast_file(week_label: str):

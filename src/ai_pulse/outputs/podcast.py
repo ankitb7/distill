@@ -427,8 +427,10 @@ async def generate_podcast(
         ).fetchone()
         if row:
             db.conn.execute(
-                "UPDATE digests SET podcast_path = ? WHERE week_label = ?",
-                (str(audio_path), week_label),
+                """UPDATE digests
+                   SET podcast_path = ?, article_count = ?, created_at = ?
+                   WHERE week_label = ?""",
+                (str(audio_path), len(articles), datetime.now().isoformat(), week_label),
             )
         else:
             db.conn.execute(
