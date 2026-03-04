@@ -28,7 +28,7 @@ def test_index_empty_db():
     client = TestClient(app)
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "AI Pulse" in resp.text
+    assert "Distill" in resp.text
 
 
 def test_index_with_articles():

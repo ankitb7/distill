@@ -1,10 +1,10 @@
 [project]
-name = "ai-pulse"
+name = "distill"
 version = "0.1.0"
 description = "AI article curation & weekly podcast generator"
 readme = "README.md"
 authors = [
-    { name = "Ankit Borawake", email = "ankit@miro.com" }
+    { name = "Ankit Borawake", email = "47322956+ankitb7@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ai-pulse = "ai_pulse.cli:app"
+distill = "ai_pulse.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.9.27,<0.10.0"]

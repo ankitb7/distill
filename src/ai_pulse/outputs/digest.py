@@ -32,7 +32,7 @@ def generate_digest(
         articles = db.get_top_articles(limit=top_n)
 
     lines = [
-        f"# AI Pulse Digest — {label}",
+        f"# Distill Digest — {label}",
         f"*Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}*",
         f"*{len(articles)} top articles*",
         "",

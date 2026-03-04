@@ -37,7 +37,7 @@ def test_generate_digest_with_articles():
         path = generate_digest(db, output_dir, top_n=5)
         assert path.exists()
         content = path.read_text()
-        assert "AI Pulse Digest" in content
+        assert "Distill Digest" in content
         assert "Digest Test Article 0" in content
         assert "Author 0" in content
         assert "0.75" in content

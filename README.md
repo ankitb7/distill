@@ -1,10 +1,10 @@
-# AI Pulse
+# Distill
 
 AI article curation and podcast generator for senior engineers focused on AI adoption — coding agents, agentic workflows, LLM integration, and practical AI engineering.
 
 Aggregates articles from multiple sources, extracts content, deduplicates, scores with Claude as an LLM judge, generates weekly digests, and produces two-host AI podcasts — all browsable through a local web dashboard.
 
-![AI Pulse Dashboard](docs/screenshot.png)
+![Distill Dashboard](docs/screenshot.png)
 
 ## How It Works
 
@@ -31,38 +31,38 @@ Collect → Extract → Deduplicate → Score → Digest → Podcast
 
 ```bash
 # Clone and install
-git clone <repo-url> && cd ai-pulse
+git clone <repo-url> && cd distill
 uv sync
 
 # Set up environment
 cp .env.example .env  # Add your ANTHROPIC_API_KEY
 
 # Initialize database
-uv run ai-pulse init
+uv run distill init
 
 # Run the full pipeline (collect → extract → dedup → score → truncate)
-uv run ai-pulse run
+uv run distill run
 
 # Start the web dashboard
-uv run ai-pulse serve
+uv run distill serve
 # → http://localhost:8585
 ```
 
 ## CLI Reference
 
 ```bash
-ai-pulse init [--install-launchd]    # Create DB schema, optionally install macOS schedulers
-ai-pulse collect [--source SOURCE]   # Fetch articles from enabled sources
-ai-pulse extract [--limit N]         # Extract full content (default: 50 articles)
-ai-pulse dedup [--embeddings]        # Mark duplicates (title similarity, optional embeddings)
-ai-pulse score                       # Score articles (engagement + Claude LLM)
-ai-pulse run                         # Full pipeline: collect → extract → dedup → score → truncate
-ai-pulse digest [--week LABEL] [--top N]  # Generate markdown digest (default: current week, top 20)
-ai-pulse podcast [--articles IDS]    # Generate podcast (weekly or on-demand by article IDs)
-ai-pulse archive                     # Weekly job: digest + podcast + prune old articles
-ai-pulse serve                       # Start web dashboard on localhost:8585
-ai-pulse stats                       # Print database statistics
-ai-pulse qa [--port PORT]            # Visual QA screenshots (requires rodney + showboat)
+distill init [--install-launchd]    # Create DB schema, optionally install macOS schedulers
+distill collect [--source SOURCE]   # Fetch articles from enabled sources
+distill extract [--limit N]         # Extract full content (default: 50 articles)
+distill dedup [--embeddings]        # Mark duplicates (title similarity, optional embeddings)
+distill score                       # Score articles (engagement + Claude LLM)
+distill run                         # Full pipeline: collect → extract → dedup → score → truncate
+distill digest [--week LABEL] [--top N]  # Generate markdown digest (default: current week, top 20)
+distill podcast [--articles IDS]    # Generate podcast (weekly or on-demand by article IDs)
+distill archive                     # Weekly job: digest + podcast + prune old articles
+distill serve                       # Start web dashboard on localhost:8585
+distill stats                       # Print database statistics
+distill qa [--port PORT]            # Visual QA screenshots (requires rodney + showboat)
 ```
 
 All commands accept `--config PATH` to override the default `config.yaml`.
@@ -135,7 +135,7 @@ FastAPI app with Jinja2 templates and Pico CSS:
 
 ## Configuration
 
-Everything is customizable via `config.yaml`. The defaults are tuned for AI/engineering topics, but you can point AI Pulse at any domain by changing the keywords, feeds, and scoring weights.
+Everything is customizable via `config.yaml`. The defaults are tuned for AI/engineering topics, but you can point Distill at any domain by changing the keywords, feeds, and scoring weights.
 
 **Make it yours:**
 - **Track a different topic** — swap `hackernews.keywords` and `rss.feeds` to follow security, DevOps, frontend, or any niche
@@ -206,22 +206,22 @@ URL normalization (tracking param stripping, www removal) is applied at insertio
 ## Automation (macOS)
 
 ```bash
-uv run ai-pulse init --install-launchd
+uv run distill init --install-launchd
 ```
 
 Installs two launchd agents in `~/Library/LaunchAgents/`:
 
 | Schedule | Command | Purpose |
 |----------|---------|---------|
-| Daily 8:00 AM | `ai-pulse run` | Collect, extract, dedup, score |
-| Sunday 10:00 AM | `ai-pulse archive` | Generate digest + podcast, prune old articles |
+| Daily 8:00 AM | `distill run` | Collect, extract, dedup, score |
+| Sunday 10:00 AM | `distill archive` | Generate digest + podcast, prune old articles |
 
 Logs written to `output/daily.log` and `output/podcast.log`.
 
 ## Project Structure
 
 ```
-ai-pulse/
+distill/
 ├── src/ai_pulse/
 │   ├── cli.py              # Typer CLI commands
 │   ├── config.py           # YAML config + env var loading
@@ -288,7 +288,7 @@ uv run ruff format src/ tests/
 **This project is provided "as is" for personal/educational use only, without warranty of any kind.**
 
 - **NotebookLM integration:** The `notebooklm-py` library is a third-party, reverse-engineered client for Google NotebookLM. It is **not** an official Google API and may violate Google's Terms of Service. Use it at your own risk. Google may change or restrict access at any time without notice. If this is a concern, switch to the `edge-tts` provider which uses only free, legitimate APIs.
-- **Content & copyright:** AI Pulse fetches and excerpts content from third-party websites, RSS feeds, and APIs. The extracted content remains the property of its original authors and publishers. This tool is intended for personal curation and summarization. Do not redistribute extracted content in ways that infringe on copyright.
+- **Content & copyright:** Distill fetches and excerpts content from third-party websites, RSS feeds, and APIs. The extracted content remains the property of its original authors and publishers. This tool is intended for personal curation and summarization. Do not redistribute extracted content in ways that infringe on copyright.
 - **Generated podcasts:** Podcast audio is generated using either Google NotebookLM or Microsoft Edge TTS voices. The generated audio is for personal use. Redistribution or commercial use may be subject to the respective service's terms.
 - **API usage:** This tool makes calls to the Anthropic API (for scoring and script generation) and various public APIs (HackerNews Algolia, Dev.to, arXiv). You are responsible for your own API usage, costs, and compliance with each provider's terms.
 

@@ -11,7 +11,7 @@ from rich.table import Table
 from ai_pulse.config import get_db_path, get_output_dir, load_config
 from ai_pulse.db import Database
 
-app = typer.Typer(name="ai-pulse", help="AI article curation & weekly podcast generator")
+app = typer.Typer(name="distill", help="AI article curation & weekly podcast generator")
 console = Console()
 
 PROJECT_DIR = Path(__file__).parent.parent.parent
@@ -247,7 +247,7 @@ def stats(config_path: Annotated[Path | None, typer.Option("--config")] = None):
     s = db.get_stats()
     db.close()
 
-    table = Table(title="AI Pulse Stats")
+    table = Table(title="Distill Stats")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right")
 
@@ -345,7 +345,7 @@ def qa(
         resp.raise_for_status()
     except Exception:
         console.print(
-            f"[red]Dashboard not running at {base_url}. Start it with: ai-pulse serve[/red]"
+            f"[red]Dashboard not running at {base_url}. Start it with: distill serve[/red]"
         )
         raise typer.Exit(1)
 
@@ -367,7 +367,7 @@ def qa(
     try:
         if report_path.exists():
             report_path.unlink()
-        _showboat("init", str(report_path), "AI Pulse — Visual QA Report")
+        _showboat("init", str(report_path), "Distill — Visual QA Report")
 
         pages = [
             ("/", "articles", "Articles"),

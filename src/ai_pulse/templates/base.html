@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}AI Pulse{% endblock %}</title>
+    <title>{% block title %}Distill{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -541,7 +541,7 @@
 <body>
     <nav class="container">
         <ul>
-            <li><a href="/" class="brand"><span>AI</span> Pulse</a></li>
+            <li><a href="/" class="brand"><span>D</span>istill</a></li>
         </ul>
         <ul>
             <li><a href="/" {% if request.url.path == "/" %}class="active"{% endif %}>Articles</a></li>
@@ -562,7 +562,7 @@
         {% block content %}{% endblock %}
     </main>
     <footer class="container">
-        <small>AI Pulse — curated by Claude</small>
+        <small>Distill — curated by Claude</small>
     </footer>
     <script>
         function toggleTheme() {

@@ -15,7 +15,7 @@ _generating: bool = False
 
 
 def create_app(config: dict) -> FastAPI:
-    app = FastAPI(title="AI Pulse")
+    app = FastAPI(title="Distill")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     db_path = get_db_path(config)
 
@@ -199,7 +199,7 @@ def create_app(config: dict) -> FastAPI:
         async with httpx.AsyncClient(
             timeout=20,
             follow_redirects=True,
-            headers={"User-Agent": "ai-pulse/0.1"},
+            headers={"User-Agent": "distill/0.1"},
         ) as client:
             for url in raw_urls:
                 if not url.startswith(("http://", "https://")):
@@ -280,7 +280,7 @@ def create_app(config: dict) -> FastAPI:
             try:
                 async with httpx.AsyncClient(
                     timeout=20, follow_redirects=True,
-                    headers={"User-Agent": "ai-pulse/0.1"},
+                    headers={"User-Agent": "distill/0.1"},
                 ) as client:
                     resp = await client.get(url)
                     content = trafilatura.extract(

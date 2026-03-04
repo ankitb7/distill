@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Podcasts — AI Pulse{% endblock %}
+{% block title %}Podcasts — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
     <h2>Podcasts</h2>
@@ -68,7 +68,7 @@
 {% else %}
 <div class="empty-state">
     <p>No podcasts yet.</p>
-    <p>Use the button above or run <code>ai-pulse podcast</code>.</p>
+    <p>Use the button above or run <code>distill podcast</code>.</p>
 </div>
 {% endif %}
 
@@ -86,8 +86,8 @@
         </p>
         <p style="margin-bottom: 0.25rem;">CLI usage:</p>
         <ul style="margin-top: 0;">
-            <li><code>ai-pulse podcast</code> — weekly (top articles + manual)</li>
-            <li><code>ai-pulse podcast --articles 1,2,3</code> — on-demand</li>
+            <li><code>distill podcast</code> — weekly (top articles + manual)</li>
+            <li><code>distill podcast --articles 1,2,3</code> — on-demand</li>
         </ul>
     </div>
 </details>

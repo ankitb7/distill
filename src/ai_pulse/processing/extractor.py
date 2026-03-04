@@ -13,7 +13,7 @@ async def extract_content(db: Database, limit: int = 50) -> int:
     async with httpx.AsyncClient(
         timeout=20,
         follow_redirects=True,
-        headers={"User-Agent": "ai-pulse/0.1 (article curation bot)"},
+        headers={"User-Agent": "distill/0.1 (article curation bot)"},
     ) as client:
         for article in articles:
             content = await _extract_single(client, article)

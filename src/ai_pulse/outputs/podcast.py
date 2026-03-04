@@ -50,7 +50,7 @@ def _build_source_text(
     label: str,
 ) -> str:
     lines = [
-        f"# AI Pulse Weekly Briefing — {label}",
+        f"# Distill Weekly Briefing — {label}",
         f"Generated: {datetime.now().strftime('%Y-%m-%d')}",
         "",
         "This document contains the top AI and engineering articles "
@@ -102,7 +102,7 @@ async def _fetch_article_content(url: str) -> str | None:
 
         async with httpx.AsyncClient(
             timeout=20, follow_redirects=True,
-            headers={"User-Agent": "ai-pulse/0.1"},
+            headers={"User-Agent": "distill/0.1"},
         ) as client:
             resp = await client.get(url)
             resp.raise_for_status()
@@ -157,8 +157,8 @@ async def _generate_notebooklm(
     from notebooklm import NotebookLMClient
 
     title = (
-        f"AI Pulse On-Demand — {label}" if article_ids
-        else f"AI Pulse — {label}"
+        f"Distill On-Demand — {label}" if article_ids
+        else f"Distill — {label}"
     )
 
     source_text = _build_source_text(articles, article_texts, label)
@@ -173,7 +173,7 @@ async def _generate_notebooklm(
 
         await client.sources.add_text(
             nb_id,
-            title=f"AI Pulse Articles — {label}",
+            title=f"Distill Articles — {label}",
             content=source_text,
             wait=True,
         )
@@ -257,7 +257,7 @@ Articles for {label}:
 
 Write the complete script now:"""
 
-    model = os.environ.get("AI_PULSE_SCRIPT_MODEL", "claude-sonnet-4-5-20250929")
+    model = os.environ.get("DISTILL_SCRIPT_MODEL", "claude-sonnet-4-5-20250929")
 
     async with httpx.AsyncClient(timeout=120) as client:
         resp = await client.post(

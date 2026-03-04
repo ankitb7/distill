@@ -3,14 +3,14 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.ai-pulse.daily</string>
+    <string>com.distill.daily</string>
     <key>ProgramArguments</key>
     <array>
         <string>__UV_PATH__</string>
         <string>run</string>
         <string>--project</string>
         <string>__PROJECT_DIR__</string>
-        <string>ai-pulse</string>
+        <string>distill</string>
         <string>run</string>
     </array>
     <key>WorkingDirectory</key>
