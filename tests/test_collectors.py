@@ -9,20 +9,39 @@ from distill.collectors.slack import SlackCollector, _fetch_channel_articles, ex
 from distill.models import Source
 
 
+def test_rss_summary_is_plain_text():
+    article = RSSCollector()._parse_entry(
+        {
+            "link": "https://example.com/article",
+            "title": "Example",
+            "summary": '<div><img src="card.png"></div><p>Useful <b>AI</b> &amp; data.</p>',
+        },
+        "Example feed",
+    )
+
+    assert article is not None
+    assert article.summary == "Useful AI & data."
+
+
 def test_slack_source_enum_value():
     assert Source.SLACK == "slack"
 
 
-def test_extract_urls_bare():
-    assert extract_urls_from_text("Check <https://example.com>") == ["https://example.com"]
+def test_extract_urls_skips_bare_domain():
+    assert extract_urls_from_text("Check <https://example.com>") == []
 
 
 def test_extract_urls_with_label():
-    assert extract_urls_from_text("<https://example.com/a|Great Article>") == ["https://example.com/a"]
+    assert extract_urls_from_text("<https://example.com/a|Great Article>") == [
+        "https://example.com/a"
+    ]
 
 
 def test_extract_urls_multiple():
-    assert extract_urls_from_text("<https://a.com> and <https://b.com|B>") == ["https://a.com", "https://b.com"]
+    assert extract_urls_from_text("<https://a.com/post> and <https://b.com/article|B>") == [
+        "https://a.com/post",
+        "https://b.com/article",
+    ]
 
 
 def test_extract_urls_none():
@@ -159,10 +178,11 @@ async def test_hackernews_default_max_age_days():
     filters = captured_params.get("numericFilters", "")
     match = re.search(r"created_at_i>(\d+)", filters)
     assert match, "created_at_i filter missing"
-    from datetime import UTC, datetime, timedelta
+    from datetime import UTC, datetime
+
     min_ts = int(match.group(1))
     age = datetime.now(UTC).timestamp() - min_ts
-    assert 29 * 86400 < age < 31 * 86400, f"Expected ~30 days, got {age/86400:.1f} days"
+    assert 29 * 86400 < age < 31 * 86400, f"Expected ~30 days, got {age / 86400:.1f} days"
 
 
 @pytest.mark.asyncio
@@ -191,7 +211,9 @@ def test_fetch_channel_articles_extracts_url():
         "reactions": [{"name": "thumbsup", "count": 3}],
         "reply_count": 1,
     }
-    articles = _fetch_channel_articles(_make_slack_client([msg]), {"id": "C123", "name": "general"}, 0)
+    articles = _fetch_channel_articles(
+        _make_slack_client([msg]), {"id": "C123", "name": "general"}, 0
+    )
     assert len(articles) == 1
     assert articles[0].url == "https://example.com/article"
     assert articles[0].points == 3
@@ -204,21 +226,33 @@ def test_fetch_channel_articles_filters_by_min_reactions():
     msg = {
         "ts": "1700000000.000001",
         "user": "U123",
-        "text": "<https://example.com>",
+        "text": "<https://example.com/article>",
         "reactions": [{"name": "thumbsup", "count": 1}],
     }
-    articles = _fetch_channel_articles(_make_slack_client([msg]), {"id": "C123", "name": "general"}, 2)
+    articles = _fetch_channel_articles(
+        _make_slack_client([msg]), {"id": "C123", "name": "general"}, 2
+    )
     assert articles == []
 
 
 def test_fetch_channel_articles_skips_bot_messages():
-    msg = {"ts": "1700000000.000001", "subtype": "bot_message", "text": "<https://example.com>", "reactions": [{"name": "+1", "count": 5}]}
+    msg = {
+        "ts": "1700000000.000001",
+        "subtype": "bot_message",
+        "text": "<https://example.com/article>",
+        "reactions": [{"name": "+1", "count": 5}],
+    }
     articles = _fetch_channel_articles(_make_slack_client([msg]), {"id": "C123"}, 0)
     assert articles == []
 
 
 def test_fetch_channel_articles_deduplicates_urls():
-    msg = {"ts": "1700000000.000001", "user": "U123", "text": "<https://example.com> and <https://example.com>", "reactions": []}
+    msg = {
+        "ts": "1700000000.000001",
+        "user": "U123",
+        "text": "<https://example.com/article> and <https://example.com/article>",
+        "reactions": [],
+    }
     articles = _fetch_channel_articles(_make_slack_client([msg]), {"id": "C123"}, 0)
     assert len(articles) == 1
 

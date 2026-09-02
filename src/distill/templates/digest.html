@@ -2,7 +2,8 @@
 {% block title %}Digests — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Digests</h2>
+    <span class="eyebrow">Your archive</span>
+    <h1>Weekly digests</h1>
     <p>Weekly markdown summaries of top articles.</p>
 </div>
 
@@ -23,7 +24,7 @@
             <td><strong>{{ d.week_label }}</strong></td>
             <td class="mono">{{ d.article_count }}</td>
             <td>{{ d.created_at[:10] if d.created_at else '—' }}</td>
-            <td><a href="/digest/{{ d.week_label }}">View</a></td>
+            <td><a href="/digest/{{ d.week_label }}">Read digest</a></td>
         </tr>
         {% endfor %}
     </tbody>

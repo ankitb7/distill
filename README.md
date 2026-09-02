@@ -1,377 +1,352 @@
 # Distill
 
-AI article curation and podcast generator for senior engineers focused on AI adoption — coding agents, agentic workflows, LLM integration, and practical AI engineering.
+**An evidence-first reading list for engineers building with AI.**
 
-Aggregates articles from multiple sources, extracts content, deduplicates, scores with Claude as an LLM judge, generates weekly digests, and produces two-host AI podcasts — all browsable through a local web dashboard.
+Distill collects articles from the places you already follow, extracts their full text,
+removes duplicates, and ranks what is genuinely worth your time. It favors production
+experience, concrete mechanisms, measured results, and actions you can try—while penalizing
+hype, repackaged consensus, and unsupported prediction.
 
-![Distill Dashboard](docs/screenshot.png)
+The result is a focused weekly briefing you can read, export as Markdown, or turn into a
+podcast.
 
-## How It Works
+![Distill's AI engineering briefing dashboard](docs/screenshot.png)
 
+## Why Distill?
+
+Keeping up with AI engineering is not a discovery problem anymore. It is a filtering problem.
+Most feeds optimize for what is new or popular; Distill optimizes for what is useful to a
+specific reader.
+
+- **Personal, not generic** — describe the systems, problems, and outcomes you care about in a
+  reader profile.
+- **Evidence over excitement** — score relevance, technical depth, novelty, applicability, and
+  evidence quality independently.
+- **Action over awareness** — every strong recommendation includes a concrete next step.
+- **Signal without a monoculture** — diversify by source, domain, and content similarity.
+- **Transparent ranking** — inspect the score, rationale, and recommended action for every item.
+- **One local workflow** — browse, search, add links, generate digests, and create podcasts from
+  the same dashboard.
+
+## How it works
+
+```text
+Collect → Extract → Deduplicate → Assess → Select → Digest → Podcast
+   │         │           │           │         │         │         │
+   │         │           │           │         │         │         └─ NotebookLM or edge-tts
+   │         │           │           │         │         └─ Weekly Markdown briefing
+   │         │           │           │         └─ Quality gates + diversity + relevant backfill
+   │         │           │           └─ Claude judges evidence against your reader profile
+   │         │           └─ Normalized URLs, title similarity, optional embeddings
+   │         └─ trafilatura → readability-lxml → Jina Reader fallback
+   └─ Hacker News, RSS, Dev.to, arXiv, Slack, and manually added links
 ```
-Collect → Extract → Deduplicate → Score → Digest → Podcast
-   │         │          │            │        │         │
-   │         │          │            │        │         └─ NotebookLM (default) or Claude script + edge-tts → MP3
-   │         │          │            │        └─ Ranked markdown summary of top N articles
-   │         │          │            └─ Engagement Z-score + Claude LLM judge (depth/novelty/applicability)
-   │         │          └─ Title similarity (difflib) + embedding cosine (sentence-transformers)
-   │         └─ trafilatura → readability-lxml → Jina Reader fallback (handles JS/bot-blocked sites)
-   └─ HackerNews, RSS (content fetched at collect time), Dev.to, arXiv, Slack (async, parallel)
-```
 
-## Quick Start
+The main briefing has two clear tiers:
 
-### Prerequisites
+1. **Recommendations** meet every configured quality threshold.
+2. **More to explore** fills the requested reading-list size with the best remaining relevant
+   articles, without presenting them as equally strong recommendations.
+
+## First-time setup
+
+### 1. Check the requirements
 
 - Python 3.12+
-- [uv](https://docs.astral.sh/uv/) package manager
-- `ANTHROPIC_API_KEY` environment variable (for scoring and podcast generation)
+- [`uv`](https://docs.astral.sh/uv/)
+- An Anthropic API key for article assessment and `edge-tts` podcast scripts
 
-### Install & Run
+Confirm the local tools are available:
 
 ```bash
-# Clone and install
-git clone <repo-url> && cd distill
+python3 --version
+uv --version
+```
+
+### 2. Clone and install
+
+```bash
+git clone https://github.com/ankitb7/distill.git
+cd distill
+
 uv sync
+```
 
-# Set up environment
-cp .env.example .env  # Add your ANTHROPIC_API_KEY
+### 3. Add your Anthropic API key
 
-# Initialize database
+```bash
+cp .env.example .env
+```
+
+Open `.env` and replace the placeholder:
+
+```dotenv
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+```
+
+Keep `.env` local; it is ignored by Git. Without a key, collection and extraction still work,
+but Claude cannot produce evidence-based article assessments.
+
+### 4. Personalize the reader profile and sources
+
+Before the first run, open [`config.yaml`](config.yaml) and replace the example
+`reader_profile` with your own mission, priority outcomes, positive signals, and noise signals.
+The checked-in profile is intentionally opinionated and should be treated as an example—not a
+universal recommendation profile.
+
+Review `sources.rss.feeds` and `sources.hackernews.keywords` at the same time. If you do not plan
+to ingest links from Slack, disable it explicitly:
+
+```yaml
+sources:
+  slack:
+    enabled: false
+```
+
+If Slack remains enabled, configure either the `token` or `mcp` backend described in
+[Slack ingestion](#slack-ingestion).
+
+### 5. Initialize and run the pipeline
+
+```bash
 uv run distill init
+uv run distill run
+```
 
-# Run the full pipeline (collect → extract → dedup → score → truncate)
+The first run can take several minutes because Distill fetches article text and asks Claude to
+assess recent candidates. Progress is printed for each pipeline stage and assessment batch.
+
+### 6. Verify the result
+
+```bash
+uv run distill stats
+uv run distill serve
+```
+
+`distill stats` should report collected articles and scored items. Then open
+[http://localhost:8585](http://localhost:8585) and confirm the Briefing page shows ranked cards.
+Stop the server with <kbd>Ctrl</kbd>+<kbd>C</kbd>.
+
+If the briefing is empty, check that articles were collected, extracted content exists, and
+`ANTHROPIC_API_KEY` is available to the process.
+
+### 7. Optional: configure podcasts
+
+Choose one provider under `podcast.provider` in `config.yaml`:
+
+- **NotebookLM:** set `provider: notebooklm`, then authenticate once with
+  `uv run notebooklm login`. Use `uv run notebooklm doctor` when authentication needs checking.
+- **edge-tts:** set `provider: edge-tts`. It uses your Anthropic key to write the script and does
+  not require Google authentication.
+
+Generate an episode only after the reading pipeline has produced a slate:
+
+```bash
+uv run distill podcast
+```
+
+## Everyday use
+
+After first-time setup, the normal workflow is:
+
+```bash
+uv run distill run
+uv run distill serve
+```
+
+`distill run` performs collection, extraction, deduplication, assessment, and safe content
+truncation. Later runs assess only new, stale, or retryable articles within the configured
+assessment horizon.
+
+## Make it yours
+
+The useful part of Distill is not a universal ranking formula—it is the reader profile in
+[`config.yaml`](config.yaml). Start with the outcomes you want to advance, then describe the
+evidence you trust and the noise you want removed.
+
+```yaml
+reader_profile:
+  mission: Find evidence-backed, actionable AI engineering practices.
+  priority_outcomes:
+    - build reliable internal coding-agent platforms
+    - run repository-scale migrations with coordinated agents
+    - improve frontend developer experience and CI pipelines
+  positive_signals:
+    - first-hand production case study with architecture and trade-offs
+    - code, measurements, evaluations, incidents, or before-and-after results
+    - a workflow, playbook, experiment, or decision framework we can reuse
+  noise_signals:
+    - prediction without evidence, mechanism, or an actionable decision
+    - launch coverage, vendor marketing, listicles, and commentary on commentary
+    - impressive demos without evaluation or production constraints
+```
+
+Then tune selection independently from assessment:
+
+```yaml
+scoring:
+  model: claude-sonnet-4-5-20250929
+  assessment_max_age_days: 45
+  weights:
+    engagement: 0.05
+    relevance: 0.25
+    technical_depth: 0.15
+    novelty: 0.15
+    applicability: 0.25
+    evidence_quality: 0.15
+    noise_penalty: 0.25
+
+recommendation:
+  minimum_score: 0.35
+  minimum_relevance: 0.6
+  minimum_applicability: 0.5
+  minimum_evidence_quality: 0.4
+  maximum_noise_penalty: 0.45
+  fill_to_limit: true
+  fallback_minimum_relevance: 0.4
+  diversity_strength: 0.15
+  max_per_domain: 2
+```
+
+See the checked-in configuration for the complete source, scoring, deduplication, web, and
+podcast options.
+
+## Sources
+
+| Source | Default | Notes |
+| --- | --- | --- |
+| Hacker News | Enabled | Algolia discovery using configured keywords and engagement floor |
+| RSS/Atom | Enabled | Curated feeds; article content is fetched during collection |
+| Dev.to | Disabled | Tag-based discovery through the public API |
+| arXiv | Disabled | Configurable research categories |
+| Slack | Configurable | Token-based collection or Claude-mediated MCP ingestion |
+| Manual links | Available | Paste URLs into the dashboard for immediate extraction |
+
+RSS content is fetched at collection time so trusted subscriptions are not starved by
+engagement-based extraction queues. Other sources use the same extraction stack during the
+`extract` stage.
+
+### Slack ingestion
+
+Slack supports two backends:
+
+- `token` collects autonomously with `slack-sdk` and a user token.
+- `mcp` accepts `CollectedArticle` JSON prepared through your Slack MCP connection and ingests it
+  with `distill ingest FILE`.
+
+The collector rejects common non-article links such as meetings, issue trackers, documents, and
+status pages. Trusted curators can be declared in the configuration and passed to the assessor as
+context—not as a substitute for evidence.
+
+## CLI
+
+```bash
+# Pipeline
+uv run distill init
+uv run distill collect [--source SOURCE]
+uv run distill extract
+uv run distill dedup [--embeddings]
+uv run distill score [--rescore]
 uv run distill run
 
-# Start the web dashboard
+# Outputs
 uv run distill serve
-# → http://localhost:8585
+uv run distill digest
+uv run distill podcast [--articles 12,45,78]
+uv run distill archive
+
+# Utilities
+uv run distill ingest FILE
+uv run distill stats
+uv run distill qa
 ```
 
-## CLI Reference
+Every command accepts `--config PATH` when you want to use a different profile. Run
+`uv run distill COMMAND --help` for command-specific options.
 
-```bash
-distill init [--install-launchd]    # Create DB schema, optionally install macOS schedulers
-distill collect [--source SOURCE]   # Fetch articles from enabled sources
-distill extract [--limit N]         # Extract full content for non-RSS articles (default: 50)
-distill dedup [--embeddings]        # Mark duplicates (title similarity, optional embeddings)
-distill score                       # Score articles (engagement + Claude LLM)
-distill run                         # Full pipeline: collect → extract → dedup → score → truncate
-distill digest [--week LABEL] [--top N]  # Generate markdown digest (default: current week, top 20)
-distill podcast [--articles IDS]    # Generate podcast (weekly or on-demand by article IDs)
-distill archive                     # Weekly job: digest + podcast + cache top articles + prune old
-distill serve                       # Start web dashboard on localhost:8585
-distill ingest FILE [--db PATH]     # Ingest articles from a JSON file (used with Slack MCP backend)
-distill stats                       # Print database statistics
-distill qa [--port PORT]            # Visual QA screenshots (requires rodney + showboat)
-```
+## Web dashboard
 
-All commands accept `--config PATH` to override the default `config.yaml`.
+- **Briefing** — prioritized recommendations, concrete next actions, and transparent assessments
+- **Search** — search Hacker News and Dev.to, then add useful results directly
+- **Add links** — bulk-ingest URLs with automatic extraction
+- **Digests** — browse generated weekly Markdown briefings
+- **Podcasts** — generate weekly or article-specific audio and listen in the browser
+- **Stats** — inspect collection, extraction, deduplication, and scoring coverage
+
+The interface supports light and dark themes, responsive layouts, keyboard navigation, labeled
+controls, and reduced-motion preferences.
+
+## Podcast providers
+
+| Provider | How it works | Requirements |
+| --- | --- | --- |
+| `notebooklm` | Uploads a source document, requests an Audio Overview, and downloads it | Interactive `notebooklm login` session |
+| `edge-tts` | Claude writes a two-host script; Microsoft voices synthesize the segments | `ANTHROPIC_API_KEY` |
+
+Select the provider under `podcast.provider` in `config.yaml`. Podcast failures are surfaced in
+the dashboard, and authentication failures explain how to reauthenticate.
+
+> [!WARNING]
+> `notebooklm-py` is an unofficial, reverse-engineered NotebookLM client—not an official Google
+> API. It can break when Google changes the product and may be unsuitable for some environments.
+> Review Google's terms before using it; choose `edge-tts` when this integration is unacceptable.
+
+## Privacy and cost
+
+Distill is local-first, but it is not fully offline:
+
+- Article titles, URLs, extracted text, and configured reader-profile context are sent to
+  Anthropic when Claude assessment is enabled.
+- Slack-derived articles may contain internal context. Only enable Slack ingestion and scoring
+  when sending that content to the configured model provider is permitted.
+- Jina Reader receives article URLs only when local extraction fallbacks fail.
+- NotebookLM receives the selected podcast source document when that provider is enabled.
+- Extracted content remains the property of its authors and publishers. Distill is intended for
+  personal curation; respect copyright and provider terms.
+
+You are responsible for API usage, costs, data handling, and compliance with each provider's
+terms.
 
 ## Architecture
 
-### Sources (Collectors)
-
-| Source | API | Default | Notes |
-|--------|-----|---------|-------|
-| HackerNews | Algolia Search | Enabled | 30+ AI keywords, min 10 points |
-| RSS | Atom/RSS feeds | Enabled | 15 curated feeds; content fetched at collect time |
-| Dev.to | Public API | Disabled | Tag-based (ai, llm, generativeai) |
-| arXiv | Atom Feed | Disabled | Categories: cs.AI, cs.LG, cs.CL, cs.SE |
-| Slack | slack-sdk / MCP | Enabled | Link-sharing channels; two backends (see below) |
-
-All collectors are async and run in parallel. Each implements a common `Collector` protocol, making it straightforward to add new sources.
-
-#### RSS Content Fetching
-
-RSS feeds are explicitly curated subscriptions, so content is fetched at **collection time** rather than in the separate extract step. Each article URL is fetched immediately after parsing the feed. This ensures RSS articles are never starved by engagement-based priority queues. The same three-tier extraction pipeline is used:
-
-1. **trafilatura** — primary, precision-focused
-2. **readability-lxml** — fallback for complex layouts
-3. **Jina Reader** (`r.jina.ai`) — fallback for JS-rendered or bot-blocked sites (e.g. openai.com)
-
-The `distill extract` step handles the same Jina fallback for HN and other sources.
-
-#### Slack Backend
-
-Slack has two interchangeable backends configured via `sources.slack.backend`:
-
-- **`token`** (autonomous) — uses `slack-sdk` with a user token (`xoxp-*`) to fetch channel history directly. Runs automatically as part of `distill collect`. Supports `max_age_days` to limit how far back messages are fetched.
-- **`mcp`** (Claude-mediated) — no bot token required. `distill collect` skips Slack; you manually ask Claude to read the channels and pipe the results into the DB:
-  1. Ask Claude: *"Read the last 100 messages from #engineering and give me a JSON list of messages with external URLs and at least 2 reactions."*
-  2. Claude calls the Slack MCP tool, parses results, and formats them as `CollectedArticle` JSON.
-  3. Claude runs: `distill ingest /tmp/slack-articles.json`
-
-The Slack collector automatically filters out non-article URLs (Google Meet, Zoom, Jira, Google Docs, Loom, status pages, bare domains) regardless of backend.
-
-**Trusted curators:** You can nominate specific Slack users as trusted curators in `config.yaml`. The scorer gives a small novelty boost to articles shared by these users, reflecting their track record for high-signal curation.
-
-### Claude Skill (`distill-pipeline`)
-
-Distill ships a packaged Claude Code skill at `.claude/skills/distill-pipeline/SKILL.md` that automates the full pipeline — including Slack MCP collection — from a single prompt.
-
-**Trigger phrases:** "run the distill pipeline", "collect articles", "generate a digest", "run distill"
-
-**What it does:**
-
-1. Reads `config.yaml` to determine Slack backend and channel config
-2. Dispatches a subagent (to protect the main context window from large pipeline output)
-3. If `backend: mcp` — the subagent reads Slack channels via MCP, filters by `min_reactions`, deduplicates URLs across channels, writes `/tmp/distill-slack-articles.json`, and runs `distill ingest`
-4. Runs `distill run && distill digest` and reports the digest path + article counts
-
-**When each path is used:**
-
-| `slack` config | What happens |
-|---|---|
-| `enabled: false` | Slack skipped; pipeline runs normally |
-| `enabled: true`, `backend: token` | `distill run` fetches Slack autonomously |
-| `enabled: true`, `backend: mcp` | Skill drives MCP collection then runs the pipeline |
-
-To use the skill, just ask Claude: *"Run the distill pipeline"* from this project directory.
-
-### Scoring System
-
-Articles are scored on a 0–1 composite scale. The scoring path differs by source:
-
-**HN / RSS / Dev.to / arXiv:**
-
-| Component | Weight | Method |
-|-----------|--------|--------|
-| Engagement | 0.15 | Z-score normalization of points + comments |
-| Technical Depth | 0.20 | Claude LLM rating (news rewrite → deep dive with code) |
-| Novelty | 0.25 | Claude LLM rating (obvious → fresh perspective) |
-| Applicability | 0.40 | Claude LLM rating (theoretical → actionable Monday morning) |
-
-**Slack (separate path):**
-
-Slack articles get a dedicated scoring prompt that evaluates the linked resource against your interest keywords, HN virality signals (fetched live via Algolia), trusted RSS author signals, and trusted curator signals. Engagement weight is minimal (0.05) since Slack articles have no native engagement metric.
-
-| Component | Weight |
-|-----------|--------|
-| Engagement | 0.05 |
-| Technical Depth | 0.25 |
-| Novelty | 0.30 |
-| Applicability | 0.40 |
-
-Articles without content get engagement-only scores, capped at 0.4 so they never outrank LLM-scored articles. Manually added articles (via the web dashboard or `/add`) automatically receive score 1.0 and always appear at the top.
-
-`get_top_articles` applies a recency filter (`max_age_days`, default 15) and excludes URLs that appeared in last week's digest to prevent repeat surfacing.
-
-### Deduplication
-
-Two-pass strategy:
-
-1. **Title similarity** — `difflib.SequenceMatcher`, threshold 0.85
-2. **Embedding cosine similarity** — `all-MiniLM-L6-v2` via sentence-transformers, threshold 0.88
-
-Duplicates are linked to a canonical article (lowest ID) via a `dedup_groups` table. URL normalization strips tracking parameters (`utm_*`, `ref`, `fbclid`, etc.) before insertion.
-
-### Podcast Generation
-
-Configurable via `podcast.provider` in `config.yaml`:
-
-| Provider | Default | How it works | Requirements |
-|----------|---------|-------------|--------------|
-| `notebooklm` | Yes | Uploads source doc to Google NotebookLM, generates audio via their pipeline | `notebooklm-py` (see disclaimer below) |
-| `edge-tts` | No | Claude generates a two-host script (Alex & Sarah), edge-tts synthesizes audio | `ANTHROPIC_API_KEY` |
-
-**Shared steps (both providers):**
-1. Top N articles collected (weekly or on-demand selection)
-2. Full content re-fetched on-demand (up to 3000 chars per article)
-3. Manually added articles tagged `[MUST COVER]` to guarantee inclusion
-
-**edge-tts flow:** Claude script → parse into speaker segments → edge-tts renders each segment → concatenate into MP3.
-
-**NotebookLM flow:** Build source markdown → upload to NotebookLM notebook → generate audio → download MP3.
-
-Podcast generation errors are surfaced in the web dashboard rather than silently failing.
-
-### Web Dashboard
-
-FastAPI app with Jinja2 templates and Pico CSS:
-
-- **Articles** — browsable list with composite scores, source badges (including Slack), score breakdowns; Slack articles link directly back to the original channel message
-- **Article detail** — full metadata, score reasoning from Claude
-- **Search** — HackerNews Algolia + Dev.to search, add results directly to DB
-- **Add links** — bulk URL submission with automatic content extraction
-- **Digests** — weekly markdown summaries
-- **Podcasts** — audio player, on-demand generation via HTMX, error display on failure
-- **Stats** — total articles, by-source breakdown, scoring coverage
-- **Theme toggle** — light/dark mode with localStorage persistence
-
-## Configuration
-
-Everything is customizable via `config.yaml`. The defaults are tuned for AI/engineering topics, but you can point Distill at any domain by changing the keywords, feeds, and scoring weights.
-
-**Make it yours:**
-- **Track a different topic** — swap `hackernews.keywords` and `rss.feeds` to follow security, DevOps, frontend, or any niche
-- **Tune article quality** — adjust `scoring.weights` to prioritize novelty over applicability, or vice versa
-- **Switch podcast provider** — set `podcast.provider` to `notebooklm` or `edge-tts`
-- **Change podcast voices** — pick any [edge-tts voice](https://github.com/rany2/edge-tts) for host A/B (edge-tts provider only)
-- **Enable more sources** — flip `devto` or `arxiv` to `enabled: true`
-- **Adjust dedup sensitivity** — lower thresholds catch more duplicates, higher lets more through
-
-```yaml
-database:
-  path: distill.db
-
-sources:
-  hackernews:
-    enabled: true
-    keywords: [AI coding, Claude Code, agentic engineering, ...]
-    min_points: 10
-    max_results: 50
-  rss:
-    enabled: true
-    feeds:
-      - url: https://simonwillison.net/atom/entries/
-        name: Simon Willison
-      # ... 14 more feeds
-  devto:
-    enabled: false
-  arxiv:
-    enabled: false
-  slack:
-    enabled: true
-    backend: mcp            # "mcp" (Claude-mediated) or "token" (autonomous, requires token)
-    # token: "${SLACK_USER_TOKEN}"   # uncomment for token backend (xoxp-* user token)
-    max_age_days: 10        # only fetch messages from the last N days (token backend)
-    channels:
-      - id: "C0123456789"   # right-click channel in Slack → Copy link → last path segment
-        name: "engineering"
-    min_reactions: 2        # minimum emoji reactions to include a link
-    max_results: 30
-    trusted_curators:       # optional: these users get a novelty boost in scoring
-      - id: "U01234567"
-        name: "Jane Smith"
-
-scoring:
-  model: claude-sonnet-4-5-20250929
-  weights: { engagement: 0.15, technical_depth: 0.20, novelty: 0.25, applicability: 0.40 }
-  min_engagement_for_llm: 5   # min points to qualify for LLM scoring (slack always qualifies)
-
-dedup:
-  title_similarity_threshold: 0.85
-  embedding_similarity_threshold: 0.88
-  embedding_model: all-MiniLM-L6-v2
-
-podcast:
-  provider: notebooklm  # notebooklm (default) or edge-tts (free, no key)
-  voice_a: en-US-GuyNeural  # edge-tts only
-  voice_b: en-US-AriaNeural  # edge-tts only
-  top_n: 20
-
-web:
-  host: 0.0.0.0
-  port: 8585
+```text
+src/distill/
+├── cli.py              Typer commands and local automation
+├── config.py           YAML configuration and environment loading
+├── models.py           Validated domain models
+├── db.py               SQLite schema and persistence boundary
+├── collectors/         Hacker News, RSS, Dev.to, arXiv, and Slack adapters
+├── processing/         Extraction, deduplication, assessment, and slate selection
+├── outputs/            Digest, podcast, and FastAPI web application
+├── static/             Product assets
+└── templates/          Jinja2 interface templates
 ```
 
-## Environment Variables
+SQLite runs in WAL mode. Network collection uses async `httpx`; assessment uses bounded
+concurrency, exponential retry for transient failures, versioned scores, and durable writes after
+each batch.
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `ANTHROPIC_API_KEY` | Yes (for scoring + podcasts) | Claude API for LLM scoring and podcast scripts |
-
-## Database
-
-SQLite with WAL mode. Five tables:
-
-- **articles** — collected articles with content, metadata, engagement metrics, dedup flags
-- **scores** — composite + per-axis scores with Claude's reasoning
-- **dedup_groups** — canonical/duplicate relationships with similarity method
-- **digests** — weekly markdown digests with podcast file paths
-- **weekly_cache** — URLs from last week's digest, used to prevent repeat surfacing across weeks
-
-URL normalization (tracking param stripping, www removal) is applied at insertion for accurate deduplication.
-
-## Automation (macOS)
-
-```bash
-uv run distill init --install-launchd
-```
-
-Installs two launchd agents in `~/Library/LaunchAgents/`:
-
-| Schedule | Command | Purpose |
-|----------|---------|---------|
-| Daily 8:00 AM | `distill run` | Collect, extract, dedup, score |
-| Sunday 10:00 AM | `distill archive` | Generate digest + podcast, cache top articles, prune old articles |
-
-Logs written to `output/daily.log` and `output/podcast.log`.
-
-## Project Structure
-
-```
-distill/
-├── src/distill/
-│   ├── cli.py              # Typer CLI commands
-│   ├── config.py           # YAML config + env var loading
-│   ├── models.py           # Pydantic models (Article, CollectedArticle, Score, Source enum)
-│   ├── db.py               # SQLite wrapper, schema, CRUD
-│   ├── collectors/
-│   │   ├── base.py         # Collector protocol
-│   │   ├── hackernews.py   # HN Algolia API
-│   │   ├── rss.py          # Feedparser-based RSS/Atom (fetches content at collect time)
-│   │   ├── devto.py        # Dev.to public API
-│   │   ├── arxiv.py        # arXiv Atom feed
-│   │   └── slack.py        # Slack (token backend via slack-sdk, or MCP-mediated)
-│   ├── processing/
-│   │   ├── extractor.py    # Content extraction (trafilatura → readability → Jina Reader)
-│   │   ├── dedup.py        # Title + embedding deduplication
-│   │   └── scorer.py       # Engagement + Claude LLM scoring (source-aware)
-│   ├── outputs/
-│   │   ├── digest.py       # Markdown digest generation
-│   │   ├── podcast.py      # Script generation + TTS + MP3
-│   │   └── web.py          # FastAPI dashboard
-│   └── templates/          # Jinja2 HTML templates (8 files)
-├── tests/                  # pytest suite (db, dedup, scoring, digest, web, collectors)
-├── launchd/                # macOS plist files for scheduled automation
-├── output/                 # Generated digests, podcasts, logs
-├── config.yaml             # Main configuration
-├── pyproject.toml          # Project metadata + dependencies
-└── uv.lock                 # Dependency lock file
-```
+For the rationale behind the recommendation system, see
+[`docs/article-recommendation-design.md`](docs/article-recommendation-design.md).
 
 ## Development
 
 ```bash
-# Install dev dependencies
 uv sync --group dev
-
-# Run tests
-uv run pytest
-
-# Lint
 uv run ruff check src/ tests/
-uv run ruff format src/ tests/
+uv run ruff format --check src/ tests/
+uv run pytest
 ```
 
-## Tech Stack
+Visual QA requires [`rodney`](https://github.com/simonw/rodney) and
+[`showboat`](https://github.com/simonw/showboat):
 
-| Layer | Technology |
-|-------|-----------|
-| Language | Python 3.12+ |
-| Package manager | uv |
-| CLI | Typer + Rich |
-| Web | FastAPI + Jinja2 + Pico CSS + HTMX |
-| Database | SQLite (WAL mode) |
-| HTTP | httpx (async) |
-| Content extraction | trafilatura + readability-lxml + Jina Reader (fallback) |
-| Embeddings | sentence-transformers (all-MiniLM-L6-v2) |
-| LLM | Anthropic Claude (scoring + podcast scripts) |
-| TTS | NotebookLM (default) or edge-tts (Microsoft neural voices) |
-| RSS | feedparser |
-| Scheduling | macOS launchd |
-| Testing | pytest + pytest-asyncio |
-| Linting | Ruff |
+```bash
+uv run distill serve
+uv run distill qa
+```
 
 ## Disclaimer
 
-**This project is provided "as is" for personal/educational use only, without warranty of any kind.**
-
-- **NotebookLM integration:** The `notebooklm-py` library is a third-party, reverse-engineered client for Google NotebookLM. It is **not** an official Google API and may violate Google's Terms of Service. Use it at your own risk. Google may change or restrict access at any time without notice. If this is a concern, switch to the `edge-tts` provider which uses only free, legitimate APIs.
-- **Content & copyright:** Distill fetches and excerpts content from third-party websites, RSS feeds, and APIs. The extracted content remains the property of its original authors and publishers. This tool is intended for personal curation and summarization. Do not redistribute extracted content in ways that infringe on copyright.
-- **Generated podcasts:** Podcast audio is generated using either Google NotebookLM or Microsoft Edge TTS voices. The generated audio is for personal use. Redistribution or commercial use may be subject to the respective service's terms.
-- **API usage:** This tool makes calls to the Anthropic API (for scoring and script generation), the Jina Reader API (for content extraction fallback), and various public APIs (HackerNews Algolia, Dev.to, arXiv). You are responsible for your own API usage, costs, and compliance with each provider's terms.
-
-**The authors of this project accept no liability for any consequences arising from the use of this software, including but not limited to Terms of Service violations, copyright claims, API costs, or data loss.**
+This project is provided as-is, without warranty. The authors accept no liability for service
+changes, terms-of-service issues, API costs, copyright claims, generated content, or data loss.

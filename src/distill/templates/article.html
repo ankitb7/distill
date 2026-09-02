@@ -2,7 +2,8 @@
 {% block title %}{{ article.title }} — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>{{ article.title }}</h2>
+    <span class="eyebrow">Article assessment</span>
+    <h1>{{ article.title }}</h1>
     <div class="article-meta" style="margin-top: 0.5rem;">
         {% if article.author %}<strong>{{ article.author }}</strong>{% endif %}
         <span class="source-badge" data-source="{{ article.source.value }}">{{ article.source.value }}</span>
@@ -11,53 +12,68 @@
         {% if article.points %}<span class="points-badge">{{ article.points }} pts</span>{% endif %}
         {% if article.comment_count %}<span class="points-badge">{{ article.comment_count }} comments</span>{% endif %}
     </div>
-    <a href="{{ article.url }}" target="_blank" style="font-size: 0.9rem; margin-top: 0.5rem; display: inline-block;">Open original &rarr;</a>
+    <a href="{{ article.url }}" target="_blank" rel="noopener" class="detail-link">Read the original <span aria-hidden="true">↗</span><span class="visually-hidden"> (opens in a new tab)</span></a>
 </div>
 
 {% if score and score.composite_score > 0 %}
 <details open>
-    <summary>Score: <span class="composite-score" style="font-size: 1rem;">{{ "%.2f"|format(score.composite_score) }}</span></summary>
+    <summary>Why this article <span class="score-pill">{{ "%.2f"|format(score.composite_score) }}</span></summary>
     <div class="stat-grid" style="margin-top: 0.75rem; margin-bottom: 0;">
         <div class="stat-card">
             <div class="label">Engagement</div>
             <div class="value">{{ "%.2f"|format(score.engagement_score) }}</div>
         </div>
         <div class="stat-card">
+            <div class="label">Relevance</div>
+            <div class="value">{{ "%.2f"|format(score.relevance) }}</div>
+        </div>
+        <div class="stat-card">
             <div class="label">Depth</div>
-            <div class="value">{{ "%.0f"|format(score.technical_depth) }}</div>
+            <div class="value">{{ "%.2f"|format(score.technical_depth) }}</div>
         </div>
         <div class="stat-card">
             <div class="label">Novelty</div>
-            <div class="value">{{ "%.0f"|format(score.novelty) }}</div>
+            <div class="value">{{ "%.2f"|format(score.novelty) }}</div>
         </div>
         <div class="stat-card">
             <div class="label">Applicability</div>
-            <div class="value">{{ "%.0f"|format(score.applicability) }}</div>
+            <div class="value">{{ "%.2f"|format(score.applicability) }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Evidence</div>
+            <div class="value">{{ "%.2f"|format(score.evidence_quality) }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Noise penalty</div>
+            <div class="value">{{ "%.2f"|format(score.noise_penalty) }}</div>
         </div>
     </div>
     {% if score.reasoning %}
-    <blockquote style="margin-top: 0.75rem; border-left: 3px solid var(--accent); padding-left: 1rem; color: var(--text); font-size: 0.9rem;">
+    <blockquote class="article-action">
         {{ score.reasoning }}
     </blockquote>
+    {% endif %}
+    {% if score.recommended_action %}
+    <p><strong>Recommended action:</strong> {{ score.recommended_action }}</p>
     {% endif %}
 </details>
 {% endif %}
 
 {% if article.content_text %}
-<div style="margin-top: 1.5rem; line-height: 1.7; color: var(--text);">
+<div class="article-content">
     {{ article.content_text[:5000] }}
     {% if article.content_text|length > 5000 %}
-    <p style="margin-top: 1rem;"><em>Content truncated. <a href="{{ article.url }}" target="_blank">Read full article &rarr;</a></em></p>
+    <p><em>Preview ends here. <a href="{{ article.url }}" target="_blank" rel="noopener">Continue on the original site <span aria-hidden="true">↗</span></a></em></p>
     {% endif %}
 </div>
 {% elif article.summary %}
-<div style="margin-top: 1.5rem; line-height: 1.7; color: var(--text); font-style: italic;">
+<div class="article-content summary">
     {{ article.summary }}
 </div>
 {% endif %}
 
 {% if article.tags %}
-<div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+<div class="tag-list" aria-label="Article tags">
     {% for tag in article.tags %}
     <span class="tag-badge">{{ tag }}</span>
     {% endfor %}

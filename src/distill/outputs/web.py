@@ -3,13 +3,20 @@ from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from distill.config import get_db_path
 from distill.db import Database
-from distill.models import CollectedArticle, ScoreBreakdown, Source
+from distill.processing.recommendation import (
+    ReadingSlateRequest,
+    meets_quality_gate,
+    select_reading_slate,
+)
+from distill.processing.text import plain_text_excerpt
 
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+STATIC_DIR = Path(__file__).parent.parent / "static"
 
 _generating: bool = False
 _last_error: str | None = None
@@ -23,7 +30,9 @@ def _build_slack_channel_map(config: dict) -> dict[str, str]:
 
 def create_app(config: dict) -> FastAPI:
     app = FastAPI(title="Distill")
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    templates.env.filters["plain_text_excerpt"] = plain_text_excerpt
     db_path = get_db_path(config)
     slack_channel_map = _build_slack_channel_map(config)
 
@@ -36,12 +45,19 @@ def create_app(config: dict) -> FastAPI:
 
         db = get_db()
         _, week_start, week_end = get_week_range()
-        articles = db.get_top_articles(
-            limit=limit, week_start=week_start, week_end=week_end
+        articles = select_reading_slate(
+            db,
+            config,
+            ReadingSlateRequest(limit=limit, week_start=week_start, week_end=week_end),
         )
 
         if source:
             articles = [(a, s) for a, s in articles if a.source.value == source]
+
+        recommendation_config = config.get("recommendation", {})
+        quality_count = sum(
+            meets_quality_gate(score, recommendation_config) for _, score in articles
+        )
 
         sources = list(db.get_stats().get("by_source", {}).keys())
         db.close()
@@ -54,6 +70,7 @@ def create_app(config: dict) -> FastAPI:
                 "sources": sources,
                 "source_filter": source,
                 "limit": limit,
+                "quality_count": quality_count,
                 "slack_channel_map": slack_channel_map,
             },
         )
@@ -61,29 +78,11 @@ def create_app(config: dict) -> FastAPI:
     @app.get("/article/{article_id}", response_class=HTMLResponse)
     async def article_detail(request: Request, article_id: int):
         db = get_db()
-        rows = db.conn.execute(
-            """SELECT a.*, s.engagement_score, s.technical_depth, s.novelty,
-                      s.applicability, s.composite_score, s.reasoning
-               FROM articles a
-               LEFT JOIN scores s ON a.id = s.article_id
-               WHERE a.id = ?""",
-            (article_id,),
-        ).fetchall()
-
-        if not rows:
+        result = db.get_article_with_score(article_id)
+        if not result:
             db.close()
             return HTMLResponse("Article not found", status_code=404)
-
-        r = rows[0]
-        article = db._row_to_article(r)
-        score = ScoreBreakdown(
-            engagement_score=r["engagement_score"] or 0,
-            technical_depth=r["technical_depth"] or 0,
-            novelty=r["novelty"] or 0,
-            applicability=r["applicability"] or 0,
-            composite_score=r["composite_score"] or 0,
-            reasoning=r["reasoning"] or "",
-        )
+        article, score = result
         db.close()
 
         return templates.TemplateResponse(
@@ -95,53 +94,37 @@ def create_app(config: dict) -> FastAPI:
     @app.get("/digests", response_class=HTMLResponse)
     async def digests_list(request: Request):
         db = get_db()
-        rows = db.conn.execute(
-            "SELECT * FROM digests ORDER BY created_at DESC"
-        ).fetchall()
-        digests = [dict(r) for r in rows]
+        digests = db.list_digests()
         db.close()
-        return templates.TemplateResponse(
-            request, "digest.html", {"digests": digests}
-        )
+        return templates.TemplateResponse(request, "digest.html", {"digests": digests})
 
     @app.get("/digest/{week_label}", response_class=HTMLResponse)
     async def digest_detail(request: Request, week_label: str):
         db = get_db()
-        row = db.conn.execute(
-            "SELECT * FROM digests WHERE week_label = ?", (week_label,)
-        ).fetchone()
+        digest = db.get_digest(week_label)
         db.close()
-        if not row:
+        if not digest:
             return HTMLResponse("Digest not found", status_code=404)
-        markdown = row["markdown"] or ""
-        return HTMLResponse(f"<pre>{markdown}</pre>")
+        return templates.TemplateResponse(request, "digest_detail.html", {"digest": digest})
 
     @app.get("/stats", response_class=HTMLResponse)
     async def stats_page(request: Request):
         db = get_db()
         stats = db.get_stats()
         db.close()
-        return templates.TemplateResponse(
-            request, "stats.html", {"stats": stats}
-        )
+        return templates.TemplateResponse(request, "stats.html", {"stats": stats})
 
     @app.get("/podcasts", response_class=HTMLResponse)
     async def podcasts_page(request: Request):
         global _last_error
         db = get_db()
-        rows = db.conn.execute(
-            "SELECT * FROM digests ORDER BY created_at DESC"
-        ).fetchall()
-        podcasts = [dict(r) for r in rows]
+        podcasts = db.list_digests()
         db.close()
         provider = config.get("podcast", {}).get("provider", "notebooklm")
         ctx = {"podcasts": podcasts, "generating": _generating, "provider": provider}
         if _generating:
             time_est = "10-15 minutes" if provider == "notebooklm" else "3-5 minutes"
-            ctx["message"] = (
-                f"Podcast generation in progress ({provider})."
-                f" Refresh in {time_est}."
-            )
+            ctx["message"] = f"Podcast generation in progress ({provider}). Refresh in {time_est}."
         elif _last_error:
             ctx["error"] = _last_error
             _last_error = None
@@ -182,14 +165,11 @@ def create_app(config: dict) -> FastAPI:
         from fastapi.responses import FileResponse
 
         db = get_db()
-        row = db.conn.execute(
-            "SELECT podcast_path FROM digests WHERE week_label = ?",
-            (week_label,),
-        ).fetchone()
+        digest = db.get_digest(week_label)
         db.close()
-        if not row or not row["podcast_path"]:
+        if not digest or not digest.podcast_path:
             return HTMLResponse("No podcast for this week", status_code=404)
-        file_path = Path(row["podcast_path"])
+        file_path = Path(digest.podcast_path)
         if not file_path.exists():
             return HTMLResponse("Podcast file not found", status_code=404)
         media = "audio/mpeg" if file_path.suffix == ".mp3" else "text/markdown"
@@ -197,72 +177,27 @@ def create_app(config: dict) -> FastAPI:
 
     @app.get("/add", response_class=HTMLResponse)
     async def add_links_page(request: Request):
-        return templates.TemplateResponse(
-            request, "add.html", {"results": None}
-        )
+        return templates.TemplateResponse(request, "add.html", {"results": None})
 
     @app.post("/add", response_class=HTMLResponse)
     async def add_links_submit(request: Request, urls: str = Form("")):
-        import httpx
-        import trafilatura
+        from distill.processing.intake import ManualArticleRequest, add_manual_articles
 
         raw_urls = [u.strip() for u in urls.splitlines() if u.strip()]
-        results = []
         db = get_db()
-
-        async with httpx.AsyncClient(
-            timeout=20,
-            follow_redirects=True,
-            headers={"User-Agent": "distill/0.1"},
-        ) as client:
-            for url in raw_urls:
-                if not url.startswith(("http://", "https://")):
-                    url = "https://" + url
-                entry = {"url": url, "status": "error", "title": None}
-                try:
-                    resp = await client.get(url)
-                    resp.raise_for_status()
-                    html = resp.text
-
-                    title = _extract_title(html, url)
-                    entry["title"] = title
-
-                    article = CollectedArticle(
-                        url=url,
-                        title=title,
-                        source=Source.RSS,
-                        source_id=f"manual:{url}",
-                        tags=["manual"],
-                    )
-                    aid = db.insert_article(article)
-                    if aid is None:
-                        entry["status"] = "exists"
-                    else:
-                        content = trafilatura.extract(
-                            html,
-                            include_comments=False,
-                            include_tables=True,
-                            favor_precision=True,
-                        )
-                        if content and len(content) > 100:
-                            db.update_content(aid, content)
-                            entry["status"] = "extracted"
-                        else:
-                            entry["status"] = "added"
-                except Exception as e:
-                    entry["status"] = f"error: {e}"
-                results.append(entry)
-
-        db.close()
-        return templates.TemplateResponse(
-            request, "add.html", {"results": results}
+        intake_results = await add_manual_articles(
+            db, [ManualArticleRequest(url) for url in raw_urls]
         )
+        db.close()
+        results = [
+            {"url": result.url, "status": result.status.value, "title": result.title}
+            for result in intake_results
+        ]
+        return templates.TemplateResponse(request, "add.html", {"results": results})
 
     @app.get("/search", response_class=HTMLResponse)
     async def search_page(request: Request):
-        return templates.TemplateResponse(
-            request, "search.html", {"results": None, "query": ""}
-        )
+        return templates.TemplateResponse(request, "search.html", {"results": None, "query": ""})
 
     @app.post("/search", response_class=HTMLResponse)
     async def search_submit(request: Request, query: str = Form("")):
@@ -278,41 +213,17 @@ def create_app(config: dict) -> FastAPI:
         title: str = Form(""),
         query: str = Form(""),
     ):
-        import httpx
-        import trafilatura
+        from distill.processing.intake import ManualArticleRequest, add_manual_articles
 
         db = get_db()
-        article = CollectedArticle(
-            url=url,
-            title=title,
-            source=Source.RSS,
-            source_id=f"manual:{url}",
-            tags=["manual"],
-        )
-        aid = db.insert_article(article)
-        if aid is not None:
-            try:
-                async with httpx.AsyncClient(
-                    timeout=20, follow_redirects=True,
-                    headers={"User-Agent": "distill/0.1"},
-                ) as client:
-                    resp = await client.get(url)
-                    content = trafilatura.extract(
-                        resp.text,
-                        include_comments=False,
-                        include_tables=True,
-                        favor_precision=True,
-                    )
-                    if content and len(content) > 100:
-                        db.update_content(aid, content)
-            except Exception:
-                pass
+        await add_manual_articles(db, [ManualArticleRequest(url, title=title)])
         db.close()
 
         # Re-run search to show updated results
         results = await _search_articles(query)
         return templates.TemplateResponse(
-            request, "search.html",
+            request,
+            "search.html",
             {"results": results, "query": query, "added": title},
         )
 
@@ -339,15 +250,17 @@ async def _search_articles(query: str, limit: int = 10) -> list[dict]:
                 if url in seen_urls:
                     continue
                 seen_urls.add(url)
-                results.append({
-                    "title": hit.get("title", ""),
-                    "url": url,
-                    "points": hit.get("points", 0),
-                    "comments": hit.get("num_comments", 0),
-                    "author": hit.get("author", ""),
-                    "date": (hit.get("created_at", ""))[:10],
-                    "source": "Hacker News",
-                })
+                results.append(
+                    {
+                        "title": hit.get("title", ""),
+                        "url": url,
+                        "points": hit.get("points", 0),
+                        "comments": hit.get("num_comments", 0),
+                        "author": hit.get("author", ""),
+                        "date": (hit.get("created_at", ""))[:10],
+                        "source": "Hacker News",
+                    }
+                )
         except Exception:
             pass
 
@@ -363,30 +276,20 @@ async def _search_articles(query: str, limit: int = 10) -> list[dict]:
                 if url in seen_urls:
                     continue
                 seen_urls.add(url)
-                results.append({
-                    "title": item.get("title", ""),
-                    "url": url,
-                    "points": item.get("positive_reactions_count", 0),
-                    "comments": item.get("comments_count", 0),
-                    "author": item.get("user", {}).get("name", ""),
-                    "date": (item.get("published_at", ""))[:10],
-                    "source": "dev.to",
-                })
+                results.append(
+                    {
+                        "title": item.get("title", ""),
+                        "url": url,
+                        "points": item.get("positive_reactions_count", 0),
+                        "comments": item.get("comments_count", 0),
+                        "author": item.get("user", {}).get("name", ""),
+                        "date": (item.get("published_at", ""))[:10],
+                        "source": "dev.to",
+                    }
+                )
         except Exception:
             pass
 
     # Sort by points descending, take top N
     results.sort(key=lambda x: x.get("points", 0), reverse=True)
     return results[:limit]
-
-
-def _extract_title(html: str, fallback: str) -> str:
-    import re
-
-    match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    match = re.search(r'<meta\s+property="og:title"\s+content="([^"]+)"', html)
-    if match:
-        return match.group(1).strip()
-    return fallback

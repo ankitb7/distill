@@ -3,6 +3,20 @@
 AI article curation and podcast generator for senior engineers focused on AI adoption.
 Pipeline: **Collect → Extract → Dedup → Score → Digest → Podcast**.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are local Markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage states use the five default Matt Pocock role strings. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
+
 ## Tech Stack
 
 - Python 3.12+, package manager: `uv`

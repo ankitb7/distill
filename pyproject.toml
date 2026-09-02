@@ -24,7 +24,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "python-multipart>=0.0.22",
     "edge-tts>=7.2.7",
-    "notebooklm-py>=0.3.2",
+    "notebooklm-py>=0.8.1",
     "slack-sdk>=3.40.1",
     "playwright>=1.58.0",
 ]

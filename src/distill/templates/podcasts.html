@@ -2,39 +2,43 @@
 {% block title %}Podcasts — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Podcasts</h2>
+    <span class="eyebrow">Listen on the go</span>
+    <h1>Podcasts</h1>
     <p>AI-generated audio digests of your top articles.</p>
 </div>
 
 {% if message %}
-<div class="flash flash-info">{{ message }}</div>
+<div class="flash flash-info" role="status">{{ message }}</div>
 {% endif %}
 {% if error %}
-<div class="flash flash-error" style="background: #2d1b1b; border: 1px solid #6b3030; color: #ff9999; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+<div class="flash flash-error" role="alert">
     <strong>Podcast generation failed:</strong> {{ error }}
 </div>
 {% endif %}
 
-<div class="podcast-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
-    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
+<div class="action-grid">
+    <section class="action-card">
+        <h2>Weekly briefing</h2>
+        <p>Turn this week’s selected and manually added articles into one episode.</p>
         <form action="/podcasts/generate" method="post">
-            <button type="submit" style="width: 100%; margin-bottom: 0.5rem;"
+            <button type="submit"
                     {% if generating %}disabled{% endif %}>
                 Generate Weekly Podcast
             </button>
         </form>
-        <small style="color: var(--text-muted);">Top articles + all manually added articles this week</small>
-    </div>
-    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
+    </section>
+    <section class="action-card">
+        <h2>Custom episode</h2>
+        <p>Choose exact articles when you need a focused deep dive.</p>
         <form action="/podcasts/generate" method="post">
-            <input type="text" name="article_ids" placeholder="Article IDs (e.g. 12, 45, 78)" style="margin-bottom: 0.5rem;" />
-            <button type="submit" class="secondary" style="width: 100%; margin-bottom: 0.5rem;"
+            <label class="visually-hidden" for="article-ids">Article IDs</label>
+            <input id="article-ids" type="text" name="article_ids" placeholder="Article IDs, for example 12, 45, 78">
+            <button type="submit" class="secondary"
                     {% if generating %}disabled{% endif %}>
                 Generate On-Demand
             </button>
-            <small style="color: var(--text-muted);">Create a podcast from specific articles by ID</small>
         </form>
-    </div>
+    </section>
 </div>
 
 {% if podcasts %}

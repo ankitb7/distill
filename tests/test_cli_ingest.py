@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -38,9 +37,7 @@ def test_ingest_from_file(db_path, tmp_path):
 
 
 def test_ingest_skips_duplicates(db_path, tmp_path):
-    articles = [
-        {"url": "https://example.com/article", "title": "Test", "source": "slack"}
-    ]
+    articles = [{"url": "https://example.com/article", "title": "Test", "source": "slack"}]
     article_file = tmp_path / "articles.json"
     article_file.write_text(json.dumps(articles))
 
@@ -58,9 +55,7 @@ def test_ingest_invalid_json(db_path, tmp_path):
 
 
 def test_ingest_from_stdin(db_path):
-    articles = [
-        {"url": "https://example.com/stdin", "title": "Stdin Test", "source": "slack"}
-    ]
+    articles = [{"url": "https://example.com/stdin", "title": "Stdin Test", "source": "slack"}]
     result = runner.invoke(app, ["ingest", "-", "--db", str(db_path)], input=json.dumps(articles))
     assert result.exit_code == 0
     assert "Ingested 1" in result.output

@@ -355,7 +355,7 @@ requires-dist = [
     { name = "feedparser", specifier = ">=6.0" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "notebooklm-py", specifier = ">=0.3.2" },
+    { name = "notebooklm-py", specifier = ">=0.8.1" },
     { name = "playwright", specifier = ">=1.58.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
@@ -1025,16 +1025,17 @@ wheels = [
 
 [[package]]
 name = "notebooklm-py"
-version = "0.3.2"
+version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
+    { name = "filelock" },
     { name = "httpx" },
     { name = "rich" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/39/5e61b38b6d4dba5077365f723b91b1942c475bec77dbdad89fc6c585698e/notebooklm_py-0.3.2.tar.gz", hash = "sha256:bcb509845a5b44e70d9f3cd480edee49d572b13a563903e11bd838e7cac8c05d", size = 7931484, upload-time = "2026-01-26T15:46:57.66Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5c/ff/5c352c1bf66a0f5ae59157ceb544991d5733ef379d4e17bc70253c22fda4/notebooklm_py-0.8.1.tar.gz", hash = "sha256:43ba51a9609a9530bfcd9ad06c1035edeac4b0e40156a5a7ee7ee302621666cd", size = 16334264, upload-time = "2026-08-14T15:00:29.158Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/f1/171354bf2e350ef68c6aa516651455ab3ba4337f34368d1814086291eef9/notebooklm_py-0.3.2-py3-none-any.whl", hash = "sha256:15f4831083b240e7513ce217107fefdcfee5140051390e5a3ae111a659a528c2", size = 154065, upload-time = "2026-01-26T15:46:55.914Z" },
+    { url = "https://files.pythonhosted.org/packages/15/82/bca1ba131ba994675dfd44cf7f731f9725e0265b056ad8b6bdc0467c9201/notebooklm_py-0.8.1-py3-none-any.whl", hash = "sha256:4d7bc3e16bedde8296a85aa0376a69e49c744d82ffa9836447c584353e2001d8", size = 1617300, upload-time = "2026-08-14T15:00:26.95Z" },
 ]
 
 [[package]]

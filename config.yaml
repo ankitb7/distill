@@ -30,6 +30,12 @@ sources:
       - AI productivity
       - AI developer tools
       - MCP server
+      - internal developer platform AI
+      - AI feature factory
+      - frontend developer experience AI
+      - AI assisted migration
+      - multi-agent software engineering
+      - agent evaluation
     min_points: 10
     max_results: 50
 
@@ -54,6 +60,9 @@ sources:
         name: Latent Space
       - url: https://stripe.dev/blog/rss.xml
         name: Stripe Engineering
+      - url: https://github.blog/engineering/feed/
+        name: GitHub Engineering
+        max_results: 15
       - url: https://www.pathtostaff.com/feed
         name: Path to Staff
       # AI research that's practical
@@ -114,15 +123,67 @@ sources:
       - id: "U011W8H4752"
         name: "Ahmed El Gabri"
 
+reader_profile:
+  mission: >-
+    Find evidence-backed ideas I can apply while building Easel, an internal AI feature factory,
+    and while improving frontend developer experience and AI development across the company.
+  priority_outcomes:
+    - Build reliable internal feature factories and agent platforms that turn requests into verified changes.
+    - Design robust agent runtimes, orchestration, sandboxing, permissions, memory, evaluation, and observability.
+    - Enable AI development safely across a large engineering organization through paved roads and governance.
+    - Execute massive codebase, framework, and tooling migrations with coordinated agents and measurable safety.
+    - Improve frontend developer experience, CI reliability, build systems, testing, release pipelines, and feedback loops.
+    - Scale parallel and swarm-style software agents while controlling conflicts, quality, cost, and recovery.
+  high_value_topics:
+    - internal developer platforms and AI feature factories
+    - coding-agent architecture and production agent infrastructure
+    - agent evaluation, reliability, observability, security, and human approval
+    - AI-assisted migrations, repository-scale refactors, and multi-agent coordination
+    - frontend infrastructure, TypeScript, monorepos, build and test pipelines, CI, and developer tooling
+    - organizational AI enablement, adoption measurement, governance, and platform operating models
+  positive_signals:
+    - first-hand production case study with architecture and trade-offs
+    - source code, reproducible experiment, benchmark, incident data, or measured before-and-after result
+    - concrete workflow, migration playbook, evaluation method, implementation detail, or decision framework
+    - honest failure modes, constraints, operational costs, and lessons that transfer to another organization
+    - genuinely new mechanism or empirical finding rather than merely a newly announced product
+  noise_signals:
+    - prediction about the future of work without evidence, mechanism, or a decision the reader can make
+    - AI industry news, funding, launch coverage, or vendor marketing without technical substance
+    - repackaged consensus, generic best practices, listicles, trend summaries, or commentary on commentary
+    - impressive demo without evaluation, production constraints, transferable insight, or usable artifact
+    - speculative social commentary where reading creates awareness but no engineering action
+
 scoring:
   model: claude-sonnet-4-5-20250929
-  batch_size: 5
-  min_engagement_for_llm: 5
+  batch_size: 12
+  concurrency: 4
+  max_retries: 3
+  retry_base_seconds: 1
+  max_output_tokens: 768
+  assessment_max_age_days: 45
+  content_preview_chars: 6000
   weights:
-    engagement: 0.15
-    technical_depth: 0.20
-    novelty: 0.25
-    applicability: 0.40
+    engagement: 0.05
+    relevance: 0.25
+    technical_depth: 0.15
+    novelty: 0.15
+    applicability: 0.25
+    evidence_quality: 0.15
+    noise_penalty: 0.25
+
+recommendation:
+  minimum_score: 0.35
+  minimum_relevance: 0.6
+  minimum_applicability: 0.5
+  minimum_evidence_quality: 0.4
+  maximum_noise_penalty: 0.45
+  fill_to_limit: true
+  fallback_minimum_relevance: 0.4
+  candidate_multiplier: 5
+  diversity_strength: 0.15
+  max_per_domain: 2
+  max_per_source: 12
 
 dedup:
   title_similarity_threshold: 0.85

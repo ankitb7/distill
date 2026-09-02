@@ -3,6 +3,7 @@ from pathlib import Path
 
 from distill.db import Database
 from distill.models import ScoreBreakdown
+from distill.processing.recommendation import ReadingSlateRequest, select_reading_slate
 
 
 def get_week_range(week_label: str | None = None) -> tuple[str, str, str]:
@@ -24,12 +25,18 @@ def generate_digest(
     output_dir: Path,
     week_label: str | None = None,
     top_n: int = 20,
+    config: dict | None = None,
 ) -> Path:
     label, week_start, week_end = get_week_range(week_label)
-    articles = db.get_top_articles(limit=top_n, week_start=week_start, week_end=week_end)
+    config = config or {}
+    articles = select_reading_slate(
+        db,
+        config,
+        ReadingSlateRequest(limit=top_n, week_start=week_start, week_end=week_end),
+    )
 
     if not articles:
-        articles = db.get_top_articles(limit=top_n)
+        articles = select_reading_slate(db, config, ReadingSlateRequest(limit=top_n))
 
     lines = [
         f"# Distill Digest — {label}",
@@ -84,12 +91,17 @@ def _format_score(score: ScoreBreakdown) -> str:
         return ""
     parts = [
         f"Engagement: {score.engagement_score:.2f}",
+        f"Relevance: {score.relevance:.2f}",
         f"Depth: {score.technical_depth:.2f}",
         f"Novelty: {score.novelty:.2f}",
         f"Applicability: {score.applicability:.2f}",
+        f"Evidence: {score.evidence_quality:.2f}",
+        f"Noise: {score.noise_penalty:.2f}",
     ]
     line = " | ".join(parts)
     result = f"*{line}*"
     if score.reasoning:
         result += f"\n*{score.reasoning}*"
+    if score.recommended_action:
+        result += f"\n**Recommended action:** {score.recommended_action}"
     return result

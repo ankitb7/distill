@@ -53,9 +53,7 @@ class DevToCollector:
         published = None
         if item.get("published_at"):
             try:
-                published = datetime.fromisoformat(
-                    item["published_at"].replace("Z", "+00:00")
-                )
+                published = datetime.fromisoformat(item["published_at"].replace("Z", "+00:00"))
             except (ValueError, TypeError):
                 pass
 

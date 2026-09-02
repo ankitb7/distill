@@ -52,14 +52,20 @@ class Article(BaseModel):
 
 
 class ScoreBreakdown(BaseModel):
-    """LLM scoring result for an article."""
+    """Versioned Article assessment used to compose a Reading slate."""
 
     engagement_score: float = 0.0
+    relevance: float = 0.0
     technical_depth: float = 0.0
     novelty: float = 0.0
     applicability: float = 0.0
+    evidence_quality: float = 0.0
+    noise_penalty: float = 0.0
     composite_score: float = 0.0
     reasoning: str = ""
+    recommended_action: str = ""
+    score_version: str = ""
+    status: str = "success"
 
 
 class ScoredArticle(BaseModel):
@@ -67,3 +73,14 @@ class ScoredArticle(BaseModel):
 
     article: Article
     score: ScoreBreakdown
+
+
+class Digest(BaseModel):
+    """Stored weekly digest and optional podcast output."""
+
+    id: int
+    week_label: str
+    markdown: str | None = None
+    podcast_path: str | None = None
+    article_count: int | None = None
+    created_at: str

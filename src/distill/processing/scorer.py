@@ -1,7 +1,10 @@
 """Article scoring: engagement normalization + Claude LLM-as-judge."""
 
+import asyncio
 import json
 import os
+from collections.abc import Callable
+from hashlib import sha256
 from statistics import mean, stdev
 from urllib.parse import urlparse
 
@@ -9,6 +12,8 @@ import httpx
 
 from distill.db import Database
 from distill.models import Article, ScoreBreakdown
+
+ASSESSMENT_RUBRIC_VERSION = "actionable-insight-v1"
 
 
 def _extract_rss_domains(config: dict) -> set[str]:
@@ -45,17 +50,60 @@ def _get_trusted_curators(config: dict) -> dict[str, str]:
     return curators
 
 
-def _get_interest_keywords(config: dict) -> list[str]:
-    """Extract the user's interest keywords from HN config."""
-    return config.get("sources", {}).get("hackernews", {}).get("keywords", [])
+def assessment_version(config: dict, model: str) -> str:
+    """Identify the model, Reader profile, rubric, and weights behind an assessment."""
+    material = {
+        "rubric": ASSESSMENT_RUBRIC_VERSION,
+        "model": model,
+        "reader_profile": config.get("reader_profile", {}),
+        "weights": config.get("scoring", {}).get("weights", {}),
+        "content_preview_chars": config.get("scoring", {}).get("content_preview_chars", 6000),
+    }
+    encoded = json.dumps(material, sort_keys=True, separators=(",", ":")).encode()
+    return sha256(encoded).hexdigest()[:16]
+
+
+def _bounded(value: object) -> float:
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def compute_composite_score(engagement: float, assessment: ScoreBreakdown, weights: dict) -> float:
+    """Combine independent Article assessment dimensions and an explicit noise penalty."""
+    dimensions = {
+        "engagement": engagement,
+        "relevance": assessment.relevance,
+        "technical_depth": assessment.technical_depth,
+        "novelty": assessment.novelty,
+        "applicability": assessment.applicability,
+        "evidence_quality": assessment.evidence_quality,
+    }
+    defaults = {
+        "engagement": 0.05,
+        "relevance": 0.25,
+        "technical_depth": 0.15,
+        "novelty": 0.15,
+        "applicability": 0.25,
+        "evidence_quality": 0.15,
+    }
+    positive_weights = {
+        name: max(0.0, float(weights.get(name, default))) for name, default in defaults.items()
+    }
+    total_weight = sum(positive_weights.values()) or 1.0
+    positive = sum(dimensions[name] * weight for name, weight in positive_weights.items())
+    noise_weight = max(0.0, float(weights.get("noise_penalty", 0.25)))
+    return _bounded(positive / total_weight - noise_weight * assessment.noise_penalty)
 
 
 def compute_engagement_score(article: Article, all_articles: list[Article]) -> float:
     if article.points is None and article.comment_count is None:
         return 0.5
 
-    points = [a.points for a in all_articles if a.points is not None]
-    comments = [a.comment_count for a in all_articles if a.comment_count is not None]
+    cohort = [a for a in all_articles if a.source == article.source]
+    points = [a.points for a in cohort if a.points is not None]
+    comments = [a.comment_count for a in cohort if a.comment_count is not None]
 
     if not points or len(points) < 2:
         return 0.5
@@ -99,169 +147,114 @@ async def _fetch_web_signals(url: str, trusted_domains: set[str]) -> dict:
     return signals
 
 
-def _build_slack_prompt(
-    article: Article,
-    web_signals: dict,
-    interest_keywords: list[str],
-    rss_authors: dict[str, str],
-    trusted_curators: dict[str, str],
-) -> str:
-    """Build a Slack-specific scoring prompt driven by user's config preferences."""
-    content_preview = (article.content_text or "")[:3000]
-    slack_context = article.summary or article.title or ""
+def _build_assessment_prompt(article: Article, config: dict, external_signals: list[str]) -> str:
+    """Build one evidence-first rubric for every Article source."""
+    profile = config.get("reader_profile", {})
+    content = article.content_text or article.summary or "No extracted content available."
+    content_limit = int(config.get("scoring", {}).get("content_preview_chars", 6000))
+    profile_text = json.dumps(profile, indent=2, sort_keys=True)
+    signals = "\n".join(f"- {signal}" for signal in external_signals) or "- none"
+    return f"""Assess whether this Article is worth this specific reader's limited attention.
 
-    # Build context sections
-    web_context_parts = []
-    if web_signals["hn_stories"] > 0:
-        web_context_parts.append(
-            f"- Hacker News: {web_signals['hn_stories']} stories, "
-            f"top had {web_signals['hn_points']} points and {web_signals['hn_comments']} comments"
-        )
-    if web_signals["domain_note"]:
-        web_context_parts.append(f"- {web_signals['domain_note']}")
+Reader profile (goals are semantic, never literal keyword requirements):
+{profile_text}
 
-    # Check if article domain matches an RSS author
-    domain = urlparse(article.url).netloc.removeprefix("www.")
-    if domain in rss_authors:
-        web_context_parts.append(
-            f"- Author signal: this domain belongs to {rss_authors[domain]}, "
-            f"who the user explicitly subscribes to via RSS"
-        )
+Article:
+- title: {article.title}
+- url: {article.url}
+- source: {article.source.value}
+- author/context: {article.author or "unknown"}
+- external signals:\n{signals}
 
-    # Check if shared by a trusted curator
-    curator_name = trusted_curators.get(article.author or "")
-    if curator_name:
-        web_context_parts.append(
-            f"- Curator signal: shared by {curator_name}, a trusted curator in this channel"
-        )
+Representative content (may be truncated):
+{content[:content_limit]}
 
-    web_context = ""
-    if web_context_parts:
-        web_context = "\nReputation & virality signals:\n" + "\n".join(web_context_parts) + "\n"
+Score each dimension independently from 0.0 to 1.0:
+- relevance: directly advances one or more Reader profile outcomes. Mere AI mention is irrelevant.
+- technical_depth: exposes mechanisms, architecture, constraints, trade-offs, or implementation.
+- novelty: contains a transferable insight not merely a new event, release, or familiar claim.
+- applicability: yields a concrete experiment, decision, workflow, migration tactic, or artifact the
+  reader could use within weeks. Predictions and awareness alone are not actions.
+- evidence_quality: first-hand implementation, code, measurements, evaluation, incident data, or a
+  detailed case study. Unsupported assertions, vendor claims, and second-hand summaries score low.
+- noise_penalty: repackaging, hype, vague futurism, unevidenced prediction, broad news, listicles,
+  or commentary that provides neither a new insight nor an executable action.
 
-    # Format interest topics as a semantic profile, not a keyword list
-    keywords_str = ", ".join(interest_keywords) if interest_keywords else ""
+Important calibration:
+- A polished or long article is not necessarily deep.
+- A cutting-edge topic is not novel unless the article contributes a specific new insight.
+- Reputation and engagement are discovery signals only; never substitute them for substance.
+- A strong case study may be actionable through transferable decisions even without a tutorial.
+- Be strict. Most articles should score below 0.6 overall.
 
-    return f"""You are scoring a URL shared in an internal Slack channel for AI/coding practitioners.
-Evaluate THE LINKED ARTICLE/RESOURCE (not the Slack message itself).
-
-The reader is a senior software engineer whose interests are:
-{keywords_str}
-
-These are NOT literal filters — they describe the SEMANTIC SPACE of what this person cares about. \
-An article doesn't need to mention these exact terms. Score high if the article's substance falls \
-within or adjacent to these interests. Score low if it's outside this space entirely (entertainment, \
-company logistics, general tech news without AI/engineering depth, social commentary).
-
-URL: {article.url}
-Slack context (how it was shared): {slack_context}
-{f"Article content:{chr(10)}{content_preview}" if content_preview else "No article content available — evaluate based on URL, domain reputation, and your knowledge of this resource."}
-{web_context}
-Score on three axes from 0.0 to 1.0:
-
-1. technical_depth: How substantive is the actual content at this URL?
-   0.0 = tweet, meme, shallow take, product landing page, announcement with no substance
-   0.5 = blog post with some analysis, tool README with good docs
-   1.0 = deep technical dive with code, architecture decisions, methodology, or research
-
-2. novelty: How fresh or unique is this within the reader's interest space?
-   0.0 = widely covered news, obvious take, rehash of known ideas
-   0.5 = interesting angle on known topic, useful tool in established category
-   1.0 = genuinely new technique, contrarian insight backed by evidence, breakthrough tool
-
-3. applicability: Could the reader directly use this in their AI-augmented engineering work THIS WEEK?
-   0.0 = entertainment, fun projects, jokes, company logistics, philosophical takes, social commentary
-   0.2 = interesting to read but no actionable takeaway
-   0.5 = useful reference, tool in a niche they might use someday
-   0.7 = practical technique, tool, or workflow they could adopt soon
-   1.0 = immediately actionable: install this tool today, apply this technique in next PR
-
-   STRICT rules for applicability:
-   - Fun/novelty projects (games, art, jokes built with AI) = 0.0-0.1 regardless of technical quality
-   - "Look what AI can do" demos = 0.1-0.2
-   - Opinion pieces / essays about AI trends = 0.1-0.3 (reading ≠ applying)
-   - Tool announcements with install instructions = 0.5-0.8
-   - Workflow patterns with step-by-step guide = 0.7-1.0
-
-Reputation matters: articles from trusted RSS authors or shared by trusted curators \
-deserve a slight boost (+0.1) to novelty, since these curators have a track record of \
-finding high-signal content. But substance still trumps reputation — a shallow link from \
-a trusted source is still shallow.
-
-Be VERY strict. Most shared links deserve low scores. A viral tweet is still just a tweet.
-
-Respond in JSON only:
-{{"technical_depth": 0.X, "novelty": 0.X, "applicability": 0.X, "reasoning": "1-2 sentences about the actual article quality"}}"""
+Return JSON only:
+{{"relevance": 0.X, "technical_depth": 0.X, "novelty": 0.X,
+  "applicability": 0.X, "evidence_quality": 0.X, "noise_penalty": 0.X,
+  "recommended_action": "one specific action or empty string",
+  "reasoning": "brief evidence-grounded explanation"}}"""
 
 
 async def score_with_llm(
     articles: list[Article],
     model: str = "claude-sonnet-4-5-20250929",
     config: dict | None = None,
+    concurrency: int = 5,
+    on_error: Callable[[int, str], None] | None = None,
 ) -> dict[int, ScoreBreakdown]:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return {}
 
     config = config or {}
-    interest_keywords = _get_interest_keywords(config)
     rss_authors = _extract_rss_authors(config)
     trusted_curators = _get_trusted_curators(config)
     trusted_domains = _extract_rss_domains(config)
 
-    results = {}
-    for article in articles:
-        is_slack = article.source.value == "slack"
+    results: dict[int, ScoreBreakdown] = {}
+    semaphore = asyncio.Semaphore(max(1, concurrency))
+    scoring_config = config.get("scoring", {})
+    max_retries = max(0, int(scoring_config.get("max_retries", 3)))
+    retry_base_seconds = max(0.0, float(scoring_config.get("retry_base_seconds", 1)))
+    max_output_tokens = max(256, int(scoring_config.get("max_output_tokens", 768)))
 
-        if is_slack:
+    async def assess(article: Article, client: httpx.AsyncClient) -> None:
+        external_signals = []
+        if article.source.value == "slack":
             web_signals = await _fetch_web_signals(article.url, trusted_domains)
-            prompt = _build_slack_prompt(
-                article, web_signals, interest_keywords, rss_authors, trusted_curators,
-            )
-        else:
-            content_preview = (article.content_text or "")[:3000]
-            if not content_preview:
-                continue
-
-            prompt = f"""Rate this article for a senior software engineer who heavily uses AI \
-(Claude Code, coding agents, agentic workflows) in daily work.
-
-The ideal article is about: practical AI adoption patterns, agentic engineering, \
-AI-augmented development workflows, coding agents, LLM integration in production, \
-career strategy for AI-era engineers, or deep technical dives with actionable takeaways.
-
-Low-value: pure hype/funding news, surface-level overviews, theoretical ML papers \
-without practical application, listicles.
-
-Title: {article.title}
-Source: {article.source.value}
-Content (preview):
-{content_preview}
-
-Rate on three axes from 0.0 to 1.0:
-1. technical_depth: 0=news rewrite/summary, 1=deep analysis with code, architecture, or methodology
-2. novelty: 0=widely covered/obvious, 1=fresh perspective, new technique, or contrarian insight
-3. applicability: 0=theoretical/hype, 1=I could apply this at work Monday morning
-
-Respond in JSON only:
-{{"technical_depth": 0.X, "novelty": 0.X, "applicability": 0.X, "reasoning": "brief"}}"""
-
-        try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                resp = await client.post(
-                    "https://api.anthropic.com/v1/messages",
-                    headers={
-                        "x-api-key": api_key,
-                        "anthropic-version": "2023-06-01",
-                        "content-type": "application/json",
-                    },
-                    json={
-                        "model": model,
-                        "max_tokens": 256,
-                        "messages": [{"role": "user", "content": prompt}],
-                    },
+            if web_signals["hn_stories"]:
+                external_signals.append(
+                    f"HN coverage: {web_signals['hn_stories']} stories; "
+                    f"maximum {web_signals['hn_points']} points"
                 )
-                resp.raise_for_status()
+            if web_signals["domain_note"]:
+                external_signals.append(web_signals["domain_note"])
+
+        domain = urlparse(article.url).netloc.removeprefix("www.")
+        if domain in rss_authors:
+            external_signals.append(f"Reader subscribes to {rss_authors[domain]}")
+        if article.author in trusted_curators:
+            external_signals.append(f"Shared by trusted curator {trusted_curators[article.author]}")
+
+        prompt = _build_assessment_prompt(article, config, external_signals)
+
+        last_error = "unknown assessment failure"
+        for attempt in range(max_retries + 1):
+            try:
+                async with semaphore:
+                    resp = await client.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={
+                            "x-api-key": api_key,
+                            "anthropic-version": "2023-06-01",
+                            "content-type": "application/json",
+                        },
+                        json={
+                            "model": model,
+                            "max_tokens": max_output_tokens,
+                            "messages": [{"role": "user", "content": prompt}],
+                        },
+                    )
+                    resp.raise_for_status()
                 data = resp.json()
                 text = data["content"][0]["text"]
                 text = text.strip()
@@ -269,120 +262,127 @@ Respond in JSON only:
                     text = text.split("\n", 1)[1].rsplit("```", 1)[0]
                 parsed = json.loads(text)
                 results[article.id] = ScoreBreakdown(
-                    technical_depth=float(parsed.get("technical_depth", 0)),
-                    novelty=float(parsed.get("novelty", 0)),
-                    applicability=float(parsed.get("applicability", 0)),
+                    relevance=_bounded(parsed.get("relevance", 0)),
+                    technical_depth=_bounded(parsed.get("technical_depth", 0)),
+                    novelty=_bounded(parsed.get("novelty", 0)),
+                    applicability=_bounded(parsed.get("applicability", 0)),
+                    evidence_quality=_bounded(parsed.get("evidence_quality", 0)),
+                    noise_penalty=_bounded(parsed.get("noise_penalty", 0)),
                     reasoning=parsed.get("reasoning", ""),
+                    recommended_action=parsed.get("recommended_action", ""),
                 )
-        except Exception:
-            continue
+                return
+            except httpx.HTTPStatusError as error:
+                last_error = f"HTTP {error.response.status_code}"
+                retryable = error.response.status_code == 429 or error.response.status_code >= 500
+            except (httpx.TransportError, json.JSONDecodeError, KeyError, IndexError) as error:
+                last_error = type(error).__name__
+                retryable = True
+            except Exception as error:
+                last_error = type(error).__name__
+                retryable = False
+
+            if not retryable or attempt == max_retries:
+                break
+            await asyncio.sleep(retry_base_seconds * (2**attempt))
+
+        if on_error:
+            on_error(article.id, last_error)
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        await asyncio.gather(*(assess(article, client) for article in articles))
 
     return results
 
 
-async def score_articles(db: Database, config: dict) -> int:
+async def score_articles(
+    db: Database,
+    config: dict,
+    *,
+    force: bool = False,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> int:
     scoring_config = config.get("scoring", {})
     model = scoring_config.get("model", "claude-sonnet-4-5-20250929")
     weights = scoring_config.get("weights", {})
-    min_engagement = scoring_config.get("min_engagement_for_llm", 5)
-    min_engagement_by_source = scoring_config.get("min_engagement_by_source", {})
     batch_size = scoring_config.get("batch_size", 5)
-
-    w_eng = weights.get("engagement", 0.20)
-    w_td = weights.get("technical_depth", 0.25)
-    w_nov = weights.get("novelty", 0.25)
-    w_app = weights.get("applicability", 0.30)
-
+    concurrency = scoring_config.get("concurrency", 5)
+    max_age_days = scoring_config.get("assessment_max_age_days", 45)
     has_api_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    version = assessment_version(config, model)
 
-    unscored = db.get_unscored_articles(min_engagement=0, require_content=False)
+    pending = db.get_articles_for_assessment(version, force=force, max_age_days=max_age_days)
     all_articles = db.get_all_articles(non_duplicate_only=True)
-
     scored_count = 0
-
-    # Manually added articles get the highest score automatically
-    manual = [a for a in unscored if "manual" in (a.tags or [])]
-    manual_ids = {a.id for a in manual}
-    for article in manual:
-        score = ScoreBreakdown(
-            engagement_score=1.0,
-            technical_depth=1.0,
-            novelty=1.0,
-            applicability=1.0,
-            composite_score=1.0,
-            reasoning="Manually added — auto-scored highest",
-        )
-        db.insert_score(article.id, score)
-        scored_count += 1
-
-    unscored = [a for a in unscored if a.id not in manual_ids]
 
     if has_api_key:
         llm_eligible = [
-            a for a in unscored
-            if a.source.value == "slack"  # Slack: always LLM-score, even without content_text
-            or (
-                a.content_text
-                and ((a.points or 0) >= min_engagement_by_source.get(a.source.value, min_engagement) or a.points is None)
-            )
+            a
+            for a in pending
+            if a.content_text
+            or a.summary
+            or a.source.value == "slack"
+            or "manual" in (a.tags or [])
         ]
         llm_ids = {a.id for a in llm_eligible}
-        engagement_only = [a for a in unscored if a.id not in llm_ids]
+        engagement_only = [a for a in pending if a.id not in llm_ids]
     else:
         llm_eligible = []
-        engagement_only = unscored
+        engagement_only = pending
 
     for article in engagement_only:
         eng = compute_engagement_score(article, all_articles)
-        # Cap engagement-only at 0.4 so they never outrank LLM-scored articles
-        composite = min(eng * w_eng / max(w_eng, 0.01), 0.4)
         score = ScoreBreakdown(
             engagement_score=eng,
-            composite_score=composite,
-            reasoning="Engagement-only (no LLM scoring)",
+            composite_score=min(eng * 0.4, 0.4),
+            reasoning=(
+                "Article assessment unavailable: ANTHROPIC_API_KEY is not configured"
+                if not has_api_key
+                else "Article assessment deferred until content is available"
+            ),
+            score_version=version,
+            status="unavailable" if not has_api_key else "incomplete",
         )
         db.insert_score(article.id, score)
         scored_count += 1
+    if on_progress and engagement_only:
+        on_progress(scored_count, len(pending))
 
     for i in range(0, len(llm_eligible), batch_size):
         batch = llm_eligible[i : i + batch_size]
-        llm_scores = await score_with_llm(batch, model=model, config=config)
+        failures: dict[int, str] = {}
+        llm_scores = await score_with_llm(
+            batch,
+            model=model,
+            config=config,
+            concurrency=concurrency,
+            on_error=failures.__setitem__,
+        )
 
         for article in batch:
             eng = compute_engagement_score(article, all_articles)
             llm = llm_scores.get(article.id)
 
             if llm:
-                if article.source.value == "slack":
-                    # Slack: minimize engagement, maximize content quality signals
-                    composite = (
-                        0.05 * eng
-                        + 0.25 * llm.technical_depth
-                        + 0.30 * llm.novelty
-                        + 0.40 * llm.applicability
-                    )
-                else:
-                    composite = (
-                        w_eng * eng
-                        + w_td * llm.technical_depth
-                        + w_nov * llm.novelty
-                        + w_app * llm.applicability
-                    )
-                score = ScoreBreakdown(
-                    engagement_score=eng,
-                    technical_depth=llm.technical_depth,
-                    novelty=llm.novelty,
-                    applicability=llm.applicability,
-                    composite_score=composite,
-                    reasoning=llm.reasoning,
-                )
+                llm.engagement_score = eng
+                llm.composite_score = compute_composite_score(eng, llm, weights)
+                llm.score_version = version
+                llm.status = "success"
+                score = llm
             else:
                 score = ScoreBreakdown(
                     engagement_score=eng,
-                    composite_score=eng,
-                    reasoning="LLM scoring failed, engagement-only",
+                    composite_score=min(eng * 0.4, 0.4),
+                    reasoning=(
+                        f"Article assessment failed ({failures.get(article.id, 'unknown')}); "
+                        "retained for retry"
+                    ),
+                    score_version=version,
+                    status="failed",
                 )
             db.insert_score(article.id, score)
             scored_count += 1
+        if on_progress:
+            on_progress(scored_count, len(pending))
 
     return scored_count

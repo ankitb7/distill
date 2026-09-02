@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Distill{% endblock %}</title>
+    <title>{% block title %}Distill — AI Engineering Signal{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', path='/favicon.svg') }}" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -119,6 +120,40 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             letter-spacing: -0.01em;
             background: var(--bg);
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% -20%, var(--accent-dim), transparent 38rem);
+        }
+
+        main.container { min-height: calc(100vh - 12rem); }
+
+        :focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+        }
+
+        .skip-link {
+            position: fixed;
+            z-index: 100;
+            top: 0.75rem;
+            left: 0.75rem;
+            transform: translateY(-200%);
+            background: var(--accent);
+            color: #fff;
+            padding: 0.6rem 0.9rem;
+            border-radius: 8px;
+        }
+        .skip-link:focus { transform: translateY(0); }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         h1, h2, h3, h4, h5, h6 {
@@ -134,17 +169,34 @@
         /* Nav */
         nav.container {
             border-bottom: 1px solid var(--border);
-            padding-bottom: 0.8rem;
+            padding-block: 0.8rem;
             margin-bottom: 0;
         }
         nav .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             color: var(--text-bright);
             text-decoration: none;
             letter-spacing: -0.03em;
         }
-        nav .brand span { color: var(--accent); }
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            box-shadow: 0 8px 24px rgba(74, 108, 247, 0.2);
+        }
+        .brand-copy { display: grid; line-height: 1.05; }
+        .brand-copy small {
+            color: var(--text-muted);
+            font-size: 0.58rem;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
         nav ul li a {
             color: var(--text-muted);
             text-decoration: none;
@@ -173,32 +225,62 @@
 
         /* Page header */
         .page-header {
-            margin: 2rem 0 1.5rem;
+            margin: 2.5rem 0 1.75rem;
         }
-        .page-header h2 {
+        .page-header h1 {
             margin-bottom: 0.25rem;
-            font-size: 1.5rem;
+            font-size: clamp(1.7rem, 4vw, 2.25rem);
+            color: var(--text-bright);
         }
         .page-header p {
             color: var(--text-muted);
             margin-bottom: 0;
             font-size: 0.9rem;
+            max-width: 65ch;
+        }
+        .eyebrow {
+            display: block;
+            color: var(--accent);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+            margin-bottom: 0.45rem;
         }
 
         /* Article list (card rows) */
         .article-list { list-style: none; padding: 0; margin: 0; }
+        .slate-divider {
+            display: flex;
+            align-items: baseline;
+            gap: 0.7rem;
+            margin: 1.75rem 0 0.8rem;
+            color: var(--text-bright);
+            font-weight: 600;
+        }
+        .slate-divider::after {
+            content: '';
+            height: 1px;
+            flex: 1;
+            background: var(--border);
+        }
+        .slate-divider small { color: var(--text-muted); font-weight: 400; }
         .article-row {
             display: flex;
             align-items: flex-start;
             gap: 1rem;
-            padding: 0.9rem 1rem;
-            border-radius: 8px;
-            border: 1px solid transparent;
-            transition: background-color 150ms ease, border-color 150ms ease;
+            padding: 1.15rem 1.2rem;
+            margin-bottom: 0.65rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: color-mix(in srgb, var(--surface) 82%, transparent);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
+            transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
         }
         .article-row:hover {
-            background: var(--surface);
-            border-color: var(--border);
+            background: var(--surface-hover);
+            border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+            transform: translateY(-1px);
         }
         .article-rank {
             font-family: 'JetBrains Mono', monospace;
@@ -216,7 +298,27 @@
             display: block;
         }
         .article-title:hover { color: var(--accent); }
-        .article-summary { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem; }
+        .article-summary {
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: var(--text-muted);
+            margin-top: 0.35rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .article-action {
+            margin: 0.75rem 0 0;
+            padding: 0.65rem 0.75rem;
+            border-left: 2px solid var(--accent);
+            border-radius: 0 7px 7px 0;
+            background: var(--accent-dim);
+            color: var(--text);
+            font-size: 0.8rem;
+            line-height: 1.45;
+        }
+        .article-action strong { color: var(--text-bright); }
         .article-meta {
             font-size: 0.8rem;
             color: var(--text-muted);
@@ -240,6 +342,30 @@
             min-width: 40px;
             text-align: right;
         }
+        .score-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.55rem;
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+            border-radius: 999px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .score-pill:hover { border-color: var(--accent); }
+        .assessment-link {
+            display: block;
+            margin-top: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            text-align: right;
+            text-decoration: none;
+        }
+        .assessment-link:hover { color: var(--accent); }
         .score-bar-wrap {
             width: 60px;
             height: 4px;
@@ -327,6 +453,52 @@
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 1rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .action-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .action-card h2 { font-size: 1rem; margin-bottom: 0.35rem; }
+        .action-card p, .form-help { color: var(--text-muted); font-size: 0.82rem; }
+        .action-card button { width: 100%; }
+        .article-content {
+            max-width: 76ch;
+            margin-top: 1.5rem;
+            padding: clamp(1rem, 3vw, 2rem);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--text);
+            line-height: 1.75;
+            white-space: pre-wrap;
+        }
+        .article-content.summary { font-style: italic; }
+        .tag-list { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.5rem; }
+        .detail-link { display: inline-block; margin-top: 0.65rem; font-size: 0.88rem; }
+        .digest-content {
+            padding: clamp(1rem, 3vw, 2rem);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--text);
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
         }
         .stat-card .label {
             font-size: 0.75rem;
@@ -446,11 +618,16 @@
             gap: 0.75rem;
             margin-bottom: 1.5rem;
             align-items: center;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
         }
         .filter-bar select {
             max-width: 200px;
             padding: 6px 12px;
             font-size: 0.85rem;
+            margin: 0;
         }
 
         /* Add form button row */
@@ -486,6 +663,7 @@
 
         /* Responsive — tablet */
         @media (max-width: 768px) {
+            .action-grid { grid-template-columns: 1fr; }
             .article-scores {
                 flex-direction: column;
                 align-items: flex-end;
@@ -494,7 +672,7 @@
             .score-bar-wrap { display: none; }
             .score-detail { display: none; }
             .stat-grid { grid-template-columns: repeat(2, 1fr); }
-            .filter-bar { flex-direction: column; }
+            .filter-bar { align-items: stretch; }
             .filter-bar select { max-width: 100%; }
             .podcast-actions { grid-template-columns: 1fr !important; }
             .search-bar { flex-direction: column; }
@@ -505,17 +683,17 @@
         /* Responsive — phone */
         @media (max-width: 480px) {
             nav.container {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
+                display: block;
             }
-            nav ul {
-                flex-wrap: wrap;
-                gap: 0.25rem 0;
+            nav.container > ul:last-child {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                margin-top: 0.65rem;
+                padding-bottom: 0.35rem;
             }
-            nav ul li a { font-size: 0.8rem; }
+            nav ul li a { font-size: 0.82rem; white-space: nowrap; }
 
-            .page-header h2 { font-size: 1.25rem; }
+            .page-header { margin-top: 1.6rem; }
 
             .article-row {
                 padding: 0.75rem 0.5rem;
@@ -539,20 +717,33 @@
 
             .btn-row { flex-direction: column; align-items: stretch; }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
-    <nav class="container">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <nav class="container" aria-label="Primary navigation">
         <ul>
-            <li><a href="/" class="brand"><span>D</span>istill</a></li>
+            <li>
+                <a href="/" class="brand" aria-label="Distill home">
+                    <img class="brand-mark" src="{{ url_for('static', path='/favicon.svg') }}" alt="">
+                    <span class="brand-copy">Distill<small>Engineering signal</small></span>
+                </a>
+            </li>
         </ul>
         <ul>
-            <li><a href="/" {% if request.url.path == "/" %}class="active"{% endif %}>Articles</a></li>
-            <li><a href="/search" {% if "/search" in request.url.path %}class="active"{% endif %}>Search</a></li>
-            <li><a href="/add" {% if request.url.path == "/add" %}class="active"{% endif %}>Add</a></li>
-            <li><a href="/digests" {% if "/digest" in request.url.path %}class="active"{% endif %}>Digests</a></li>
-            <li><a href="/podcasts" {% if "/podcast" in request.url.path %}class="active"{% endif %}>Podcasts</a></li>
-            <li><a href="/stats" {% if request.url.path == "/stats" %}class="active"{% endif %}>Stats</a></li>
+            <li><a href="/" {% if request.url.path == "/" %}class="active" aria-current="page"{% endif %}>Briefing</a></li>
+            <li><a href="/search" {% if "/search" in request.url.path %}class="active" aria-current="page"{% endif %}>Search</a></li>
+            <li><a href="/add" {% if request.url.path == "/add" %}class="active" aria-current="page"{% endif %}>Add links</a></li>
+            <li><a href="/digests" {% if "/digest" in request.url.path %}class="active" aria-current="page"{% endif %}>Digests</a></li>
+            <li><a href="/podcasts" {% if "/podcast" in request.url.path %}class="active" aria-current="page"{% endif %}>Podcasts</a></li>
+            <li><a href="/stats" {% if request.url.path == "/stats" %}class="active" aria-current="page"{% endif %}>Stats</a></li>
             <li>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle light/dark theme">
                     <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -561,11 +752,11 @@
             </li>
         </ul>
     </nav>
-    <main class="container">
+    <main class="container" id="main-content">
         {% block content %}{% endblock %}
     </main>
     <footer class="container">
-        <small>Distill — curated by Claude</small>
+        <small>Distill turns engineering noise into an actionable reading list.</small>
     </footer>
     <script>
         function toggleTheme() {

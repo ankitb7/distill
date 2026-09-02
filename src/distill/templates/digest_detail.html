@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ digest.week_label }} Digest — Distill{% endblock %}
+{% block content %}
+<div class="page-header">
+    <span class="eyebrow">Weekly digest</span>
+    <h1>{{ digest.week_label }}</h1>
+    <p>{{ digest.article_count }} selected articles · created {{ digest.created_at[:10] }}</p>
+</div>
+<pre class="digest-content">{{ digest.markdown or "This digest is empty." }}</pre>
+{% endblock %}

@@ -26,8 +26,7 @@ class HackerNewsCollector:
         articles = []
         async with httpx.AsyncClient(timeout=30) as client:
             tasks = [
-                self._search_keyword(client, kw, min_points, max_results, min_ts)
-                for kw in keywords
+                self._search_keyword(client, kw, min_points, max_results, min_ts) for kw in keywords
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -44,7 +43,12 @@ class HackerNewsCollector:
         return articles[:max_results]
 
     async def _search_keyword(
-        self, client: httpx.AsyncClient, keyword: str, min_points: int, max_results: int, min_ts: int
+        self,
+        client: httpx.AsyncClient,
+        keyword: str,
+        min_points: int,
+        max_results: int,
+        min_ts: int,
     ) -> list[CollectedArticle]:
         params = {
             "query": keyword,
@@ -68,9 +72,7 @@ class HackerNewsCollector:
                     author=hit.get("author"),
                     source=Source.HACKERNEWS,
                     source_id=hit.get("objectID"),
-                    published_at=datetime.fromtimestamp(
-                        hit["created_at_i"], tz=UTC
-                    )
+                    published_at=datetime.fromtimestamp(hit["created_at_i"], tz=UTC)
                     if hit.get("created_at_i")
                     else None,
                     points=hit.get("points", 0),

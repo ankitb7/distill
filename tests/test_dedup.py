@@ -49,3 +49,30 @@ def test_title_dedup_no_duplicates(tmp_db):
 
     marked = run_title_dedup(tmp_db, threshold=0.85)
     assert marked == 0
+
+
+def test_title_dedup_keeps_article_with_richer_content(tmp_db):
+    shallow_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/shallow",
+            title="Operating a Production AI Feature Factory",
+            source=Source.HACKERNEWS,
+            content_text="short",
+            content_length=5,
+        )
+    )
+    rich_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://author.example/rich",
+            title="Operating a Production AI Feature Factory",
+            source=Source.RSS,
+            content_text="implementation evidence " * 100,
+            content_length=2400,
+        )
+    )
+
+    run_title_dedup(tmp_db)
+
+    articles = {article.id: article for article in tmp_db.get_all_articles(False)}
+    assert articles[shallow_id].canonical_id == rich_id
+    assert articles[rich_id].is_duplicate is False

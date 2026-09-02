@@ -1,20 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Distill — Articles{% endblock %}
+{% block title %}Distill — AI Engineering Signal{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Top Articles</h2>
-    <p>This week's highest-scoring AI and engineering reads.</p>
+    <span class="eyebrow">Your weekly signal</span>
+    <h1>AI engineering briefing</h1>
+    <p>Evidence-backed ideas selected for building AI systems, developer platforms, and large-scale migrations.</p>
 </div>
 
-<form method="get" action="/">
+<form method="get" action="/" aria-label="Filter briefing">
     <div class="filter-bar">
-        <select name="source" onchange="this.form.submit()">
+        <label class="visually-hidden" for="source-filter">Source</label>
+        <select id="source-filter" name="source" onchange="this.form.submit()">
             <option value="">All Sources</option>
             {% for s in sources %}
             <option value="{{ s }}" {% if source_filter == s %}selected{% endif %}>{{ s }}</option>
             {% endfor %}
         </select>
-        <select name="limit" onchange="this.form.submit()">
+        <label class="visually-hidden" for="result-limit">Number of articles</label>
+        <select id="result-limit" name="limit" onchange="this.form.submit()">
             {% for n in [20, 50, 100] %}
             <option value="{{ n }}" {% if limit == n %}selected{% endif %}>Top {{ n }}</option>
             {% endfor %}
@@ -25,20 +28,30 @@
 {% if articles %}
 <ul class="article-list">
     {% for article, score in articles %}
+    {% if quality_count is defined and loop.index == quality_count + 1 %}
+    <li class="slate-divider">
+        <span>More to explore</span>
+        <small>Relevant options that did not meet every recommendation threshold</small>
+    </li>
+    {% endif %}
     <li class="article-row">
         <span class="article-rank">{{ loop.index }}</span>
         <div class="article-body">
             {% if article.source.value == "slack" and article.source_id and article.tags %}
             {% set channel_id = slack_channel_map.get(article.tags[0], '') if slack_channel_map is defined else '' %}
             {% if channel_id %}
-            <a href="https://miro.slack.com/archives/{{ channel_id }}/p{{ article.source_id.replace('.', '') }}" target="_blank" class="article-title">{{ article.title }}</a>
+            <a href="https://miro.slack.com/archives/{{ channel_id }}/p{{ article.source_id.replace('.', '') }}" target="_blank" rel="noopener" class="article-title">{{ article.title }} <span class="visually-hidden">(opens in a new tab)</span></a>
             {% else %}
-            <a href="{{ article.url }}" target="_blank" class="article-title">{{ article.title }}</a>
+            <a href="{{ article.url }}" target="_blank" rel="noopener" class="article-title">{{ article.title }} <span class="visually-hidden">(opens in a new tab)</span></a>
             {% endif %}
             {% else %}
-            <a href="{{ article.url }}" target="_blank" class="article-title">{{ article.title }}</a>
+            <a href="{{ article.url }}" target="_blank" rel="noopener" class="article-title">{{ article.title }} <span class="visually-hidden">(opens in a new tab)</span></a>
             {% endif %}
-            {% if article.summary %}<div class="article-summary">{{ article.summary }}</div>{% endif %}
+            {% set description = (article.summary or article.content_text)|plain_text_excerpt %}
+            {% if description %}<div class="article-summary">{{ description }}</div>{% endif %}
+            {% if score.recommended_action %}
+            <p class="article-action"><strong>Try this:</strong> {{ score.recommended_action }}</p>
+            {% endif %}
             <div class="article-meta">
                 {% if article.author %}<span>{{ article.author }}</span>{% endif %}
                 <span class="source-badge" data-source="{{ article.source.value }}">{{ article.source.value }}</span>
@@ -50,11 +63,8 @@
         <div class="article-scores">
             {% if score.composite_score > 0 %}
             <div>
-                <div class="composite-score">{{ "%.2f"|format(score.composite_score) }}</div>
-                <div class="score-bar-wrap">
-                    <div class="score-bar-fill" style="width: {{ (score.composite_score * 100)|int }}%"></div>
-                </div>
-                <div class="score-detail">D:{{ "%.0f"|format(score.technical_depth) }} N:{{ "%.0f"|format(score.novelty) }} A:{{ "%.0f"|format(score.applicability) }}</div>
+                <a class="score-pill" href="/article/{{ article.id }}" aria-label="Assessment score {{ '%.2f'|format(score.composite_score) }}; view details">{{ "%.2f"|format(score.composite_score) }}</a>
+                <a class="assessment-link" href="/article/{{ article.id }}">Why this?</a>
             </div>
             {% else %}
             <div class="composite-score" style="color: var(--text-muted);">—</div>

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from distill.db import normalize_url
 from distill.models import CollectedArticle, ScoreBreakdown, Source
@@ -52,11 +52,37 @@ def test_insert_duplicate_url_updates_engagement(tmp_db):
     assert id1 is not None
     assert id2 is None  # duplicate returns None
 
-    row = tmp_db.conn.execute(
-        "SELECT points, comment_count FROM articles WHERE id = ?", (id1,)
-    ).fetchone()
-    assert row["points"] == 100
-    assert row["comment_count"] == 20
+    stored, _ = tmp_db.get_article_with_score(id1)
+    assert stored.points == 100
+    assert stored.comment_count == 20
+
+
+def test_insert_duplicate_url_keeps_richest_content(tmp_db):
+    article_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/refresh",
+            title="Refresh",
+            source=Source.HACKERNEWS,
+            summary="Short",
+            content_text="old",
+            content_length=3,
+        )
+    )
+    tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/refresh",
+            title="Refresh",
+            source=Source.RSS,
+            summary="A much richer summary",
+            content_text="new evidence " * 100,
+            content_length=1300,
+        )
+    )
+
+    stored, _ = tmp_db.get_article_with_score(article_id)
+    assert stored.summary == "A much richer summary"
+    assert stored.content_text == "new evidence " * 100
+    assert stored.content_length == 1300
 
 
 def test_get_stats(tmp_db):
@@ -96,3 +122,99 @@ def test_insert_and_get_score(tmp_db):
     a, s = results[0]
     assert s.composite_score == 0.75
     assert s.reasoning == "Good article"
+
+
+def test_get_article_with_score(tmp_db):
+    article_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/detail",
+            title="Detail",
+            source=Source.RSS,
+        )
+    )
+
+    article, score = tmp_db.get_article_with_score(article_id)
+
+    assert article.id == article_id
+    assert article.title == "Detail"
+    assert score.composite_score == 0
+
+
+def test_article_assessment_version_controls_rescoring(tmp_db):
+    article_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/versioned",
+            title="Versioned assessment",
+            source=Source.RSS,
+        )
+    )
+    tmp_db.insert_score(
+        article_id,
+        ScoreBreakdown(composite_score=0.7, score_version="profile-v1", status="success"),
+    )
+
+    assert tmp_db.get_articles_for_assessment("profile-v1") == []
+    assert [article.id for article in tmp_db.get_articles_for_assessment("profile-v2")] == [
+        article_id
+    ]
+
+
+def test_article_assessment_respects_recency_horizon(tmp_db):
+    recent_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/recent",
+            title="Recent",
+            source=Source.RSS,
+            published_at=datetime.now(tz=UTC),
+        )
+    )
+    tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/old",
+            title="Old",
+            source=Source.RSS,
+            published_at=datetime.now(tz=UTC) - timedelta(days=90),
+        )
+    )
+
+    pending = tmp_db.get_articles_for_assessment("current", max_age_days=45)
+
+    assert [article.id for article in pending] == [recent_id]
+
+
+def test_incomplete_assessment_waits_for_new_evidence(tmp_db):
+    article_id = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/incomplete",
+            title="Incomplete",
+            source=Source.HACKERNEWS,
+        )
+    )
+    tmp_db.insert_score(
+        article_id,
+        ScoreBreakdown(score_version="current", status="incomplete"),
+    )
+
+    assert tmp_db.get_articles_for_assessment("current") == []
+
+    tmp_db.update_content(article_id, "Newly extracted implementation evidence")
+
+    assert [a.id for a in tmp_db.get_articles_for_assessment("current")] == [article_id]
+
+
+def test_digest_and_podcast_persistence(tmp_db, tmp_path):
+    tmp_db.insert_digest("2026-W36", "# Digest", 3)
+
+    digest = tmp_db.get_digest("2026-W36")
+    assert digest is not None
+    assert digest.markdown == "# Digest"
+    assert tmp_db.list_digests() == [digest]
+
+    podcast_path = tmp_path / "podcast.mp3"
+    tmp_db.save_podcast("2026-W36", podcast_path, 4)
+
+    updated = tmp_db.get_digest("2026-W36")
+    assert updated is not None
+    assert updated.markdown == "# Digest"
+    assert updated.podcast_path == str(podcast_path)
+    assert updated.article_count == 4

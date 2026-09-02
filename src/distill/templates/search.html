@@ -2,17 +2,19 @@
 {% block title %}Search — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Topic Search</h2>
+    <span class="eyebrow">Explore beyond your feeds</span>
+    <h1>Topic search</h1>
     <p>Find the best articles on any topic from across the web.</p>
 </div>
 
 <form method="post" action="/search" class="search-bar">
-    <input type="text" name="query" value="{{ query }}" placeholder="e.g. agentic engineering, RAG patterns, Claude Code" autofocus />
+    <label class="visually-hidden" for="topic-query">Topic</label>
+    <input id="topic-query" type="search" name="query" value="{{ query }}" placeholder="Agentic engineering, migration pipelines, Claude Code…" required autofocus>
     <button type="submit">Search</button>
 </form>
 
 {% if added %}
-<div class="flash flash-success">Added: {{ added }}</div>
+<div class="flash flash-success" role="status">Added “{{ added }}” to your library.</div>
 {% endif %}
 
 {% if results is not none %}
@@ -22,7 +24,7 @@
         <li class="article-row">
             <span class="article-rank">{{ loop.index }}</span>
             <div class="article-body">
-                <a href="{{ r.url }}" target="_blank" class="article-title">{{ r.title }}</a>
+                <a href="{{ r.url }}" target="_blank" rel="noopener" class="article-title">{{ r.title }} <span class="visually-hidden">(opens in a new tab)</span></a>
                 <div class="article-meta">
                     {% if r.author %}<span>{{ r.author }}</span>{% endif %}
                     <span class="source-badge" data-source="{{ r.source|lower|replace(' ', '') }}">{{ r.source }}</span>
@@ -34,7 +36,7 @@
                 <input type="hidden" name="url" value="{{ r.url }}" />
                 <input type="hidden" name="title" value="{{ r.title }}" />
                 <input type="hidden" name="query" value="{{ query }}" />
-                <button type="submit" class="outline secondary" style="padding: 4px 12px; margin: 0; font-size: 0.8rem;">+ Add</button>
+                <button type="submit" class="outline secondary" style="padding: 4px 12px; margin: 0; font-size: 0.8rem;">Add</button>
             </form>
         </li>
         {% endfor %}

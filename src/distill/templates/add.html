@@ -2,21 +2,23 @@
 {% block title %}Add Links — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h2>Add Links</h2>
+    <span class="eyebrow">Curate directly</span>
+    <h1>Add links</h1>
     <p>Drop one URL per line. Content will be fetched and extracted automatically.</p>
 </div>
 
-<form hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
-    <textarea name="urls" rows="5" placeholder="https://example.com/great-ai-article
+<form class="panel" hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
+    <label for="article-urls">Article URLs</label>
+    <textarea id="article-urls" name="urls" rows="5" placeholder="https://example.com/great-ai-article
 https://another.com/llm-deep-dive
 https://blog.example.com/practical-rag-guide" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;"></textarea>
     <div class="btn-row">
-        <button type="submit">Add & Extract</button>
-        <span id="spinner" class="htmx-indicator" aria-busy="true" style="color: var(--text-muted); font-size: 0.85rem;">Processing...</span>
+        <button type="submit">Add and extract</button>
+        <span id="spinner" class="htmx-indicator form-help" role="status">Fetching and extracting…</span>
     </div>
 </form>
 
-<div id="results" style="margin-top: 1.5rem;">
+<div id="results" style="margin-top: 1.5rem;" aria-live="polite">
     {% if results %}
     <div class="table-wrap">
     <table>
@@ -31,7 +33,7 @@ https://blog.example.com/practical-rag-guide" style="font-family: 'JetBrains Mon
             {% for r in results %}
             <tr>
                 <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <a href="{{ r.url }}" target="_blank">{{ r.url }}</a>
+                    <a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.url }}</a>
                 </td>
                 <td>
                     {% if r.status == "added" %}
