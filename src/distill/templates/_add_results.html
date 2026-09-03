@@ -1,0 +1,34 @@
+{% if results %}
+<div class="table-wrap">
+<table>
+    <thead>
+        <tr>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Title</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in results %}
+        <tr>
+            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.url }}</a>
+            </td>
+            <td>
+                {% if r.status == "added" %}
+                <span class="status-green">Added</span>
+                {% elif r.status == "exists" %}
+                <span class="status-amber">Already exists</span>
+                {% elif r.status == "extracted" %}
+                <span class="status-green">Added + extracted</span>
+                {% else %}
+                <span class="status-red">{{ r.status }}</span>
+                {% endif %}
+            </td>
+            <td>{{ r.title or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endif %}

@@ -165,3 +165,18 @@ def test_article_not_found():
     client = TestClient(app)
     resp = client.get("/article/99999")
     assert resp.status_code == 404
+
+
+def test_add_links_htmx_response_is_results_fragment():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+    db = Database(db_path)
+    db.init_schema()
+    db.close()
+
+    client = TestClient(create_app(_make_config(db_path)))
+    resp = client.post("/add", data={"urls": ""}, headers={"HX-Request": "true"})
+
+    assert resp.status_code == 200
+    assert "<!DOCTYPE html>" not in resp.text
+    assert "<form" not in resp.text

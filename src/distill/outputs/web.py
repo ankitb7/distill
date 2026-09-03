@@ -193,7 +193,10 @@ def create_app(config: dict) -> FastAPI:
             {"url": result.url, "status": result.status.value, "title": result.title}
             for result in intake_results
         ]
-        return templates.TemplateResponse(request, "add.html", {"results": results})
+        template = (
+            "_add_results.html" if request.headers.get("HX-Request") == "true" else "add.html"
+        )
+        return templates.TemplateResponse(request, template, {"results": results})
 
     @app.get("/search", response_class=HTMLResponse)
     async def search_page(request: Request):
