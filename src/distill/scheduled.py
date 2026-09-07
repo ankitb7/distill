@@ -114,7 +114,12 @@ def collect_slack(config: dict) -> list[CollectedArticle]:
             capture_output=True,
             text=True,
             timeout=900,
-            check=True,
+            check=False,
+        )
+    if response.returncode:
+        raise RuntimeError(
+            f"Claude Slack collection exited {response.returncode}: "
+            f"{response.stderr[-2000:]} {response.stdout[-2000:]}"
         )
     return validate_result(json.loads(response.stdout), config, datetime.now(UTC))
 

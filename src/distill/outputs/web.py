@@ -50,6 +50,8 @@ def create_app(config: dict) -> FastAPI:
             config,
             ReadingSlateRequest(limit=limit, week_start=week_start, week_end=week_end),
         )
+        if not articles:
+            articles = select_reading_slate(db, config, ReadingSlateRequest(limit=limit))
 
         if source:
             articles = [(a, s) for a, s in articles if a.source.value == source]

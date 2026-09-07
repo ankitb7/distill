@@ -40,6 +40,31 @@ def test_index_empty_db():
     assert favicon.headers["content-type"].startswith("image/svg+xml")
 
 
+def test_index_falls_back_to_recent_articles_when_week_has_no_qualified_articles(
+    tmp_path: Path, monkeypatch
+) -> None:
+    db_path = tmp_path / "fallback.db"
+    db = Database(db_path)
+    db.init_schema()
+    aid = db.insert_article(
+        CollectedArticle(
+            url="https://example.com/recent",
+            title="Recent useful article",
+            source=Source.RSS,
+            content_text="Useful engineering evidence.",
+        )
+    )
+    db.insert_score(aid, ScoreBreakdown(composite_score=0.8))
+    db.close()
+    # Advance the weekly window beyond collection while retaining real recency filtering.
+    monkeypatch.setattr(
+        "distill.outputs.digest.get_week_range",
+        lambda: ("2099-W01", "2099-01-01T00:00:00", "2099-01-08T00:00:00"),
+    )
+    response = TestClient(create_app(_make_config(db_path))).get("/")
+    assert "Recent useful article" in response.text
+
+
 def test_index_with_articles():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)

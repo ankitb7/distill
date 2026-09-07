@@ -1,9 +1,29 @@
+import json
+import subprocess
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
 from distill import scheduled
 from distill.scheduled import validate_result
+
+
+def test_claude_failure_reports_captured_error(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / ".claude.json").write_text(
+        json.dumps({"mcpServers": {"slack": {"type": "http", "url": "https://example.com/mcp"}}})
+    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(scheduled.shutil, "which", lambda name: "/bin/claude")
+    monkeypatch.setattr(
+        scheduled.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 1, stdout="", stderr="Authentication expired"
+        ),
+    )
+    with pytest.raises(RuntimeError, match="Authentication expired"):
+        scheduled.collect_slack({"channels": []})
 
 
 def test_failed_mcp_read_is_not_treated_as_empty_success() -> None:
