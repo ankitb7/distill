@@ -5,10 +5,16 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from rich.console import Console
 
 from distill.config import get_db_path
 from distill.db import Database
-from distill.outputs.podcast_providers import DEFAULT_PODCAST_PROVIDER
+from distill.outputs.podcast_providers import (
+    DEFAULT_PODCAST_PROVIDER,
+    PODCAST_PROVIDERS,
+    configure_podcast,
+)
+from distill.outputs.podcastfy import SCRIPT_PROVIDERS, PodcastfyProvider, PodcastfySettings
 from distill.processing.recommendation import (
     ReadingSlateRequest,
     meets_quality_gate,
@@ -21,6 +27,7 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 
 _generating: bool = False
 _last_error: str | None = None
+_active_provider: str | None = None
 
 
 def _build_slack_channel_map(config: dict) -> dict[str, str]:
@@ -134,10 +141,20 @@ def create_app(config: dict) -> FastAPI:
         finally:
             db.close()
         provider = config.get("podcast", {}).get("provider", DEFAULT_PODCAST_PROVIDER)
-        ctx = {"episodes": episodes, "generating": _generating, "provider": provider}
+        ctx = {
+            "episodes": episodes,
+            "generating": _generating,
+            "provider": provider,
+            "providers": PODCAST_PROVIDERS,
+            "script_providers": SCRIPT_PROVIDERS,
+            "script_provider": config.get("podcast", {})
+            .get("podcastfy", {})
+            .get("script_provider", "anthropic"),
+        }
         if _generating:
             ctx["message"] = (
-                f"Podcast generation in progress ({provider}). Refresh in a few minutes."
+                f"Podcast generation in progress ({_active_provider or provider}). "
+                "Refresh in a few minutes."
             )
         elif _last_error:
             ctx["error"] = _last_error
@@ -149,11 +166,24 @@ def create_app(config: dict) -> FastAPI:
         return RedirectResponse("/podcasts", status_code=308)
 
     @app.post("/podcasts/generate")
-    async def generate_podcast_now(article_ids: str = Form("")):
-        global _generating
+    async def generate_podcast_now(
+        article_ids: str = Form(""), provider: str = Form(""), script_provider: str = Form("")
+    ):
+        global _generating, _active_provider, _last_error
         if not _generating:
             from distill.config import get_output_dir
             from distill.outputs.podcast import generate_podcast
+
+            try:
+                selected_config = configure_podcast(config, provider, script_provider)
+                selected_provider = selected_config["podcast"]["provider"]
+                if selected_provider == "podcastfy-edge":
+                    PodcastfyProvider(
+                        PodcastfySettings(**selected_config["podcast"].get("podcastfy", {}))
+                    ).validate_setup()
+            except ValueError as exc:
+                _last_error = str(exc)
+                return RedirectResponse("/podcasts", status_code=303)
 
             ids = None
             if article_ids.strip():
@@ -170,18 +200,21 @@ def create_app(config: dict) -> FastAPI:
                     raise HTTPException(422, "Some articles could not be found. Check the IDs.")
 
             _generating = True
+            _active_provider = selected_provider
+            _last_error = None
 
             async def _run():
-                global _generating, _last_error
+                global _generating, _last_error, _active_provider
                 db = get_db()
                 try:
                     output_dir = get_output_dir(config)
-                    await generate_podcast(db, config, output_dir, article_ids=ids)
+                    await generate_podcast(db, selected_config, output_dir, article_ids=ids)
                 except Exception as e:
                     _last_error = str(e)
-                    print(f"Podcast generation failed: {e}")
+                    Console().print(f"Podcast generation failed: {e}")
                 finally:
                     _generating = False
+                    _active_provider = None
                     db.close()
 
             asyncio.create_task(_run())

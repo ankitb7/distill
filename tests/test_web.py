@@ -218,6 +218,10 @@ def test_podcasts_empty_state(tmp_db):
     assert 'href="/podcast-articles"' not in response.text
     assert "Current provider: <strong>gemini-api-tts</strong>" in response.text
     assert "NotebookLM" not in response.text
+    assert 'value="podcastfy-edge"' in response.text
+    assert 'for="weekly-provider"' in response.text
+    assert 'for="custom-script-provider"' in response.text
+    assert 'aria-describedby="custom-script-help"' in response.text
 
 
 def test_podcasts_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
@@ -286,6 +290,52 @@ def test_custom_episode_generated_through_web_has_source_links(tmp_db, tmp_path)
             assert response.status_code == 200
             sources = client.get("/podcasts")
     assert 'href="https://example.com/custom"' in sources.text
+
+
+def test_web_provider_override_does_not_change_defaults(tmp_db):
+    config = _make_config(tmp_db.db_path)
+    config["podcast"] = {
+        "provider": "gemini-api-tts",
+        "podcastfy": {"script_provider": "anthropic"},
+    }
+    generate = AsyncMock(return_value=None)
+    with (
+        patch("distill.outputs.web.PodcastfyProvider.validate_setup"),
+        patch("distill.outputs.podcast.generate_podcast", generate),
+    ):
+        with TestClient(create_app(config)) as client:
+            response = client.post(
+                "/podcasts/generate",
+                data={
+                    "provider": "podcastfy-edge",
+                    "script_provider": "openai",
+                },
+            )
+    assert response.status_code == 200
+    selected = generate.await_args.args[1]["podcast"]
+    assert selected["provider"] == "podcastfy-edge"
+    assert selected["podcastfy"]["script_provider"] == "openai"
+    assert config["podcast"]["provider"] == "gemini-api-tts"
+    assert config["podcast"]["podcastfy"]["script_provider"] == "anthropic"
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"provider": "notebooklm"},
+        {"provider": "podcastfy-edge", "script_provider": "invalid"},
+        {"provider": "podcastfy-edge", "script_provider": "openai"},
+    ],
+)
+def test_invalid_or_unconfigured_provider_shows_error_without_starting(tmp_db, monkeypatch, data):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with patch("distill.outputs.podcast.generate_podcast", new_callable=AsyncMock) as generate:
+        response = TestClient(create_app(_make_config(tmp_db.db_path))).post(
+            "/podcasts/generate", data=data
+        )
+    assert response.status_code == 200
+    assert 'role="alert"' in response.text
+    generate.assert_not_called()
 
 
 def test_old_podcast_articles_url_redirects_to_podcasts(tmp_db):

@@ -208,3 +208,15 @@ podcast:
   # Edge TTS voices (if provider: edge-tts)
   voice_a: en-US-GuyNeural
   voice_b: en-US-AriaNeural
+  # Optional provider: podcastfy-edge (install with: uv run distill podcast-setup)
+  podcastfy:
+    script_provider: anthropic  # anthropic | openai | gemini
+    models:
+      anthropic: claude-sonnet-4-5-20250929
+      openai: gpt-4.1-mini
+      gemini: gemini-3.8-flash
+    python: .venv-podcastfy/bin/python
+    voice_a: en-US-AndrewMultilingualNeural
+    voice_b: en-US-AvaMultilingualNeural
+    target_words: 2000
+    timeout_seconds: 1800

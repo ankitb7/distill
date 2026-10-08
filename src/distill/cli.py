@@ -248,10 +248,19 @@ def podcast(
     articles: Annotated[
         str | None, typer.Option("--articles", help="Article IDs, comma-separated")
     ] = None,
+    provider: Annotated[str | None, typer.Option("--provider")] = None,
+    script_provider: Annotated[
+        str | None, typer.Option("--script-provider", help="Podcastfy: anthropic, openai, gemini")
+    ] = None,
     config_path: Annotated[Path | None, typer.Option("--config")] = None,
 ):
     """Generate a podcast. Weekly (default) or on-demand with --articles."""
-    config = load_config(config_path)
+    from distill.outputs.podcast_providers import configure_podcast
+
+    try:
+        config = configure_podcast(load_config(config_path), provider, script_provider)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     try:
         from distill.outputs.podcast import generate_podcast
 
@@ -261,14 +270,55 @@ def podcast(
         if articles:
             article_ids = [int(x.strip()) for x in articles.split(",")]
             console.print(f"On-demand podcast for article IDs: {article_ids}")
-        path = asyncio.run(generate_podcast(db, config, output_dir, article_ids=article_ids))
-        db.close()
+        try:
+            path = asyncio.run(generate_podcast(db, config, output_dir, article_ids=article_ids))
+        finally:
+            db.close()
         if path:
             console.print(f"[green]Podcast saved to {path}[/green]")
         else:
             console.print("[yellow]Podcast generation failed or no articles available.[/yellow]")
     except ImportError:
         console.print("[red]Podcast dependencies not installed.[/red]")
+
+
+@app.command("podcast-setup")
+def podcast_setup(
+    config_path: Annotated[Path | None, typer.Option("--config")] = None,
+) -> None:
+    """Install the optional Podcastfy worker and audio tools in a separate environment."""
+    from distill.outputs.podcastfy import WORKER, PodcastfySettings
+
+    settings = PodcastfySettings(**load_config(config_path).get("podcast", {}).get("podcastfy", {}))
+    interpreter = settings.interpreter
+    uv = shutil.which("uv")
+    if not uv:
+        raise typer.BadParameter("Install uv before setting up Podcastfy.")
+    console.print("Installing the optional Podcastfy environment and audio tools...")
+    try:
+        if not interpreter.exists():
+            subprocess.run(
+                [uv, "venv", str(interpreter.parent.parent), "--python", "3.12"], check=True
+            )
+        subprocess.run(
+            [
+                uv,
+                "pip",
+                "install",
+                "--python",
+                str(interpreter),
+                "podcastfy==0.4.3",
+                "anthropic==1.12.1",
+                "playwright==1.63.0",
+                "static-ffmpeg==3.0",
+            ],
+            check=True,
+        )
+        subprocess.run([str(interpreter), "-I", str(WORKER), "--setup"], check=True)
+    except subprocess.CalledProcessError as exc:
+        console.print("[red]Podcastfy setup failed. Check the installer output and retry.[/red]")
+        raise typer.Exit(1) from exc
+    console.print("[green]Podcastfy is ready. Select Podcastfy + Edge voices in Podcasts.[/green]")
 
 
 @app.command()

@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Podcasts — Distill{% endblock %}
 {% block content %}
+{% macro provider_fields(prefix) %}
+<label for="{{ prefix }}-provider">Audio provider</label>
+<select id="{{ prefix }}-provider" name="provider" {% if generating %}disabled{% endif %}>
+    {% for value, label in providers.items() %}
+    <option value="{{ value }}" {% if value == provider %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+</select>
+<label for="{{ prefix }}-script-provider">Podcastfy script provider</label>
+<select id="{{ prefix }}-script-provider" name="script_provider"
+        aria-describedby="{{ prefix }}-script-help" {% if generating %}disabled{% endif %}>
+    {% for value, label in script_providers.items() %}
+    <option value="{{ value }}" {% if value == script_provider %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+</select>
+<p id="{{ prefix }}-script-help" class="form-help">Used with Podcastfy. Uses your configured API key; Edge voices need no extra key.</p>
+{% endmacro %}
 <div class="page-header">
     <span class="eyebrow">Listen on the go</span>
     <h1>Podcasts</h1>
@@ -21,6 +37,7 @@
         <h2>Weekly briefing</h2>
         <p>Turn this week’s selected and manually added articles into one episode.</p>
         <form action="/podcasts/generate" method="post">
+            {{ provider_fields('weekly') }}
             <button type="submit"
                     {% if generating %}disabled{% endif %}>
                 Generate Weekly Podcast
@@ -31,6 +48,7 @@
         <h2>Custom episode</h2>
         <p>Choose exact articles when you need a focused deep dive.</p>
         <form action="/podcasts/generate" method="post">
+            {{ provider_fields('custom') }}
             <label class="visually-hidden" for="article-ids">Article IDs</label>
             <input id="article-ids" type="text" name="article_ids" placeholder="Article IDs, for example 12, 45, 78">
             <button type="submit" class="secondary"
@@ -87,6 +105,8 @@
         <p style="margin-bottom: 0.25rem;">Current provider: <strong>{{ provider|default('gemini-api-tts') }}</strong>
         {% if provider == 'edge-tts' %}
         (Claude script + Microsoft edge-tts — free, ~3-5 min generation time)
+        {% elif provider == 'podcastfy-edge' %}
+        (Your selected AI provider writes the conversation; Microsoft Edge voices create the audio)
         {% elif provider == 'gemini-tts' %}
         (Claude script + Google Gemini voices through the official Cloud Text-to-Speech API)
         {% elif provider == 'gemini-api-tts' %}
@@ -97,7 +117,9 @@
         <ul style="margin-top: 0;">
             <li><code>distill podcast</code> — weekly (top articles + manual)</li>
             <li><code>distill podcast --articles 1,2,3</code> — on-demand</li>
+            <li><code>distill podcast --provider podcastfy-edge --script-provider anthropic</code> — Podcastfy with Claude and Edge voices</li>
         </ul>
+        <p>Podcastfy setup: <code>uv run distill podcast-setup</code>. Configure provider keys in <code>.env</code> and models in <code>config.yaml</code>. Edge uses Microsoft’s hosted speech service.</p>
     </div>
 </details>
 {% endblock %}

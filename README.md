@@ -293,8 +293,10 @@ controls, and reduced-motion preferences.
 | `edge-tts` | Claude writes a two-host script; Microsoft voices synthesize the segments | `ANTHROPIC_API_KEY` |
 | `gemini-api-tts` (default) | Claude writes a two-host script; Gemini Flash TTS voices the dialogue through the official Developer API | `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`; free-tier TTS quota available |
 | `gemini-tts` | Claude writes a two-host script; Google's official Cloud TTS API voices the dialogue | `ANTHROPIC_API_KEY`, Google Cloud project with billing and Application Default Credentials |
+| `podcastfy-edge` | Podcastfy writes with the selected AI provider and synthesizes with Edge Andrew/Ava voices | Optional worker setup; one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY` |
 
-Select the provider under `podcast.provider` in `config.yaml`. Podcast failures are surfaced in
+Choose a provider for each episode in the Podcasts page or with `distill podcast --provider`.
+Set the default under `podcast.provider` in `config.yaml`. Podcast failures are surfaced in
 the dashboard, and authentication failures explain how to reauthenticate.
 
 Both Gemini providers use documented Google APIs. No browser login or session cookies are required.
@@ -310,6 +312,45 @@ separate delivery direction, configurable with `podcast.gemini_style_a` and
 Script generation produces a connected deep-dive conversation with short exchanges, follow-up
 questions, and natural attribution of claims. Each episode keeps its original article links in a
 collapsed list below the player; expand the article count to browse the sources.
+
+### Podcastfy with your own API key
+
+Install the optional worker once:
+
+```bash
+uv run distill podcast-setup
+```
+
+This installs Podcastfy 0.4.3 and its runtime dependencies into `.venv-podcastfy`
+using Python 3.12, and downloads FFmpeg/FFprobe. It does not add Podcastfy's
+dependency stack to Distill's main environment. The installer needs network access
+and `uv`. An existing worker interpreter can be configured at `podcast.podcastfy.python`.
+
+Set the chosen provider's API key in `.env` and restart the server. Select
+**Podcastfy + Edge voices**, then choose **Claude (Anthropic)**, **OpenAI**, or **Gemini**
+for the script. Alternatively:
+
+```bash
+uv run distill podcast --provider podcastfy-edge --script-provider anthropic --articles 1,2,3
+```
+
+Configure models, voices, target word count, and timeout under `podcast.podcastfy` in
+`config.yaml`. Defaults are Claude Sonnet 4.5, GPT-4.1 mini, and Gemini 3.8 Flash for
+the respective script providers. Provider keys must have API access to the selected
+model. This integration uses API keys, not Claude Code or Codex subscription sign-in.
+Scoring elsewhere in Distill still requires Anthropic.
+
+Edge requires no additional voice API key, but uses Microsoft's hosted speech
+service. Podcastfy is open source; the voice service is not a local open-source
+model. Script content goes to the selected AI provider and spoken dialogue goes to
+Edge. API keys are loaded by the worker from the server environment; they are not
+included in job files or browser forms.
+
+Distill supplies a local conversation prompt instead of loading remote LangChain
+Hub objects. Each job runs in a separate process with tracing disabled. The worker
+validates alternating speaker turns and decodes the completed audio before it is
+published. Timeouts or failures leave the existing episode unchanged. Per-episode
+provider choices do not change the configured Gemini default.
 
 Dialogue is divided into requests of at most 3,000 UTF-8 bytes, also below Cloud TTS's
 4,000-byte text limit. Each response is checked for empty or incomplete PCM data, unexpected format, and implausible

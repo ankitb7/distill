@@ -1,6 +1,7 @@
 import os
 import tempfile
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -11,6 +12,12 @@ from distill.models import Article, ScoreBreakdown
 
 StatusCallback = Callable[[str], None]
 DEFAULT_PODCAST_PROVIDER = "gemini-api-tts"
+PODCAST_PROVIDERS = {
+    "gemini-api-tts": "Gemini voices",
+    "podcastfy-edge": "Podcastfy + Edge voices",
+    "gemini-tts": "Google Cloud TTS",
+    "edge-tts": "Claude + Edge voices (legacy)",
+}
 PODCAST_BRIEF = (
     "You are briefing a senior software engineer who uses AI coding agents daily. "
     "Cover practical takeaways, genuine novelty, and what can be applied Monday "
@@ -33,6 +40,10 @@ class PodcastProvider(Protocol):
 
 
 def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
+    if name == "podcastfy-edge":
+        from distill.outputs.podcastfy import PodcastfyProvider, PodcastfySettings
+
+        return PodcastfyProvider(PodcastfySettings(**config.get("podcastfy", {})))
     if name == "gemini-api-tts":
         from distill.outputs.gemini_api_tts import ALEX_STYLE, SARAH_STYLE, GeminiAPITTSProvider
 
@@ -57,9 +68,26 @@ def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
             voice_a=config.get("voice_a", "en-US-GuyNeural"),
             voice_b=config.get("voice_b", "en-US-AriaNeural"),
         )
-    raise ValueError(
-        f"Unknown podcast provider: {name!r}. Use: gemini-api-tts, gemini-tts, edge-tts"
-    )
+    raise ValueError(f"Unknown podcast provider: {name!r}. Use: {', '.join(PODCAST_PROVIDERS)}")
+
+
+def configure_podcast(
+    config: dict, provider: str | None = None, script_provider: str | None = None
+) -> dict:
+    """Apply per-generation choices without changing the application's defaults."""
+    from distill.outputs.podcastfy import SCRIPT_PROVIDERS
+
+    selected = deepcopy(config)
+    podcast = selected.setdefault("podcast", {})
+    provider = provider or podcast.get("provider", DEFAULT_PODCAST_PROVIDER)
+    if provider not in PODCAST_PROVIDERS:
+        raise ValueError("Choose a supported podcast provider.")
+    podcast["provider"] = provider
+    if script_provider:
+        if script_provider not in SCRIPT_PROVIDERS:
+            raise ValueError("Choose Claude, OpenAI, or Gemini for the Podcastfy script.")
+        podcast.setdefault("podcastfy", {})["script_provider"] = script_provider
+    return selected
 
 
 @dataclass(frozen=True)
