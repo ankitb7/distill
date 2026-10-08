@@ -209,16 +209,16 @@ def test_add_links_htmx_response_is_results_fragment():
     assert "<form" not in resp.text
 
 
-def test_podcast_articles_empty_state(tmp_db):
+def test_podcasts_empty_state(tmp_db):
     client = TestClient(create_app(_make_config(tmp_db.db_path)))
-    response = client.get("/podcast-articles")
+    response = client.get("/podcasts")
     assert response.status_code == 200
-    assert "No podcast articles yet." in response.text
-    assert 'href="/podcast-articles" class="active" aria-current="page"' in response.text
-    assert 'href="/podcasts" class="active"' not in response.text
+    assert "No podcasts yet." in response.text
+    assert 'href="/podcasts" class="active" aria-current="page"' in response.text
+    assert 'href="/podcast-articles"' not in response.text
 
 
-def test_podcast_articles_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
+def test_podcasts_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
     audio = tmp_path / "custom.mp3"
     audio.write_bytes(b"audio")
     for i in range(2):
@@ -235,7 +235,7 @@ def test_podcast_articles_group_sources_and_keep_legacy_episodes(tmp_db, tmp_pat
     tmp_db.insert_digest("digest-only", "# Digest", 20)
     tmp_db.delete_old_articles("2099-01-01")
     client = TestClient(create_app(_make_config(tmp_db.db_path)))
-    response = client.get("/podcast-articles")
+    response = client.get("/podcasts")
     assert response.status_code == 200
     for i in range(2):
         section = response.text.split(f'id="episode-custom-{i}"')[1].split("</section>")[0]
@@ -245,9 +245,7 @@ def test_podcast_articles_group_sources_and_keep_legacy_episodes(tmp_db, tmp_pat
         assert f'src="/podcast-file/custom-{i}"' in section
     assert "Article links weren’t saved for this episode." in response.text
     assert "digest-only" not in response.text
-    podcasts = client.get("/podcasts")
-    assert 'href="/podcast-articles#episode-custom-0"' in podcasts.text
-    assert "digest-only" not in podcasts.text
+    assert 'action="/podcasts/generate"' in response.text
     playback = client.get("/podcast-file/custom-0")
     assert playback.content == b"audio"
     assert playback.headers["content-type"] == "audio/mpeg"
@@ -279,5 +277,12 @@ def test_custom_episode_generated_through_web_has_source_links(tmp_db, tmp_path)
         with TestClient(create_app(_make_config(tmp_db.db_path))) as client:
             response = client.post("/podcasts/generate", data={"article_ids": str(aid)})
             assert response.status_code == 200
-            sources = client.get("/podcast-articles")
+            sources = client.get("/podcasts")
     assert 'href="https://example.com/custom"' in sources.text
+
+
+def test_old_podcast_articles_url_redirects_to_podcasts(tmp_db):
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    response = client.get("/podcast-articles", follow_redirects=False)
+    assert response.status_code == 308
+    assert response.headers["location"] == "/podcasts"

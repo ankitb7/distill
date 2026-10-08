@@ -4,7 +4,7 @@
 <div class="page-header">
     <span class="eyebrow">Listen on the go</span>
     <h1>Podcasts</h1>
-    <p>AI-generated audio digests of your top articles.</p>
+    <p>Listen to your episodes and explore the original articles behind each one.</p>
 </div>
 
 {% if message %}
@@ -41,45 +41,40 @@
     </section>
 </div>
 
-{% if podcasts %}
-<div class="table-wrap">
-<table>
-    <thead>
-        <tr>
-            <th>Episode</th>
-            <th>Articles</th>
-            <th>Created</th>
-            <th>Listen</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for p in podcasts %}
-        <tr>
-            <td><strong>{{ p.week_label }}</strong></td>
-            <td><a href="/podcast-articles#episode-{{ p.week_label }}">{{ p.article_count }} articles<span class="visually-hidden"> for {{ p.week_label }}</span></a></td>
-            <td>{{ p.created_at[:10] }}</td>
-            <td>
-                {% if p.podcast_path and p.podcast_path.endswith('.mp3') %}
-                <audio controls preload="none">
-                    <source src="/podcast-file/{{ p.week_label }}" type="audio/mpeg">
-                </audio>
-                {% elif p.podcast_path %}
-                <a href="/podcast-file/{{ p.week_label }}">Download</a>
-                {% else %}
-                <span style="color: var(--text-muted);">—</span>
-                {% endif %}
-            </td>
-        </tr>
+{% for episode in episodes %}
+{% set p = episode.podcast %}
+<section class="action-card" id="episode-{{ p.week_label }}" aria-labelledby="heading-{{ p.week_label }}">
+    <h2 id="heading-{{ p.week_label }}">Episode {{ p.week_label }}</h2>
+    <p>{{ p.created_at[:10] }} · {{ p.article_count }} {{ 'article' if p.article_count == 1 else 'articles' }}</p>
+    {% if p.podcast_path.endswith('.mp3') %}
+    <audio controls preload="none" aria-label="Listen to episode {{ p.week_label }}">
+        <source src="/podcast-file/{{ p.week_label }}" type="audio/mpeg">
+    </audio>
+    {% else %}
+    <p><a href="/podcast-file/{{ p.week_label }}">Download episode {{ p.week_label }}</a></p>
+    {% endif %}
+    {% if episode.articles %}
+    <ol>
+        {% for article in episode.articles %}
+        <li>
+            {% if article.url.startswith(('https://', 'http://')) %}
+            <a href="{{ article.url }}">{{ article.title }}</a>
+            {% else %}
+            {{ article.title }}
+            {% endif %}
+        </li>
         {% endfor %}
-    </tbody>
-</table>
-</div>
+    </ol>
+    {% else %}
+    <p>Article links weren’t saved for this episode. New episodes will include their source articles here.</p>
+    {% endif %}
+</section>
 {% else %}
 <div class="empty-state">
     <p>No podcasts yet.</p>
-    <p>Use the button above or run <code>distill podcast</code>.</p>
+    <p>Create an episode above to listen and explore its original articles.</p>
 </div>
-{% endif %}
+{% endfor %}
 
 <details style="margin-top: 1.5rem;">
     <summary>How podcasts work</summary>

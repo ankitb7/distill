@@ -125,10 +125,15 @@ def create_app(config: dict) -> FastAPI:
     async def podcasts_page(request: Request):
         global _last_error
         db = get_db()
-        podcasts = db.list_podcasts()
-        db.close()
+        try:
+            episodes = [
+                {"podcast": podcast, "articles": db.get_podcast_articles(podcast.week_label)}
+                for podcast in db.list_podcasts()
+            ]
+        finally:
+            db.close()
         provider = config.get("podcast", {}).get("provider", "notebooklm")
-        ctx = {"podcasts": podcasts, "generating": _generating, "provider": provider}
+        ctx = {"episodes": episodes, "generating": _generating, "provider": provider}
         if _generating:
             time_est = "10-15 minutes" if provider == "notebooklm" else "3-5 minutes"
             ctx["message"] = f"Podcast generation in progress ({provider}). Refresh in {time_est}."
@@ -137,17 +142,9 @@ def create_app(config: dict) -> FastAPI:
             _last_error = None
         return templates.TemplateResponse(request, "podcasts.html", ctx)
 
-    @app.get("/podcast-articles", response_class=HTMLResponse)
-    async def podcast_articles_page(request: Request):
-        db = get_db()
-        try:
-            episodes = [
-                {"podcast": podcast, "articles": db.get_podcast_articles(podcast.week_label)}
-                for podcast in db.list_podcasts()
-            ]
-        finally:
-            db.close()
-        return templates.TemplateResponse(request, "podcast_articles.html", {"episodes": episodes})
+    @app.get("/podcast-articles")
+    async def podcast_articles_page() -> RedirectResponse:
+        return RedirectResponse("/podcasts", status_code=308)
 
     @app.post("/podcasts/generate")
     async def generate_podcast_now(article_ids: str = Form("")):
