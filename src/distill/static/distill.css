@@ -398,7 +398,7 @@ dialog form { margin: 16px 0 0; text-align: right; }
 .navigation-menu a { padding: 8px 12px; border-radius: 4px; text-decoration: none; color: var(--fg-2); }
 .navigation-menu a:hover { background: var(--row-selected); }
 
-/* One generation panel and a continuous list of episodes. */
+/* One generation panel and individually spaced episode cards. */
 .section-label { font-size: 14px; line-height: 20px; text-transform: uppercase; letter-spacing: 0.025em; font-weight: 600; color: var(--fg-muted); margin: 0 0 12px; }
 .episode-generator { margin-bottom: 24px; }
 .generator-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -413,9 +413,8 @@ dialog form { margin: 16px 0 0; text-align: right; }
 .episode-generator form > p:first-of-type { font-size: 13px; color: var(--fg-muted); }
 .provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .provider-grid select { margin-bottom: 6px; }
-.episode-list { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.episode-list .episode-row { border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0; margin: 0; padding: 12px; background: transparent; }
-.episode-list .episode-row:last-child { border-bottom: 0; }
+.episode-list { display: grid; gap: 16px; }
+.episode-list .episode-row { border: 1px solid var(--line); border-radius: 6px; margin: 0; padding: 12px; background: var(--panel); }
 .episode-row.enhanced-player { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
 .episode-body { min-width: 0; }
 .episode-row .episode-play { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; padding: 0; border: 0; }
