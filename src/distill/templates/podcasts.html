@@ -54,17 +54,20 @@
     <p><a href="/podcast-file/{{ p.week_label }}">Download episode {{ p.week_label }}</a></p>
     {% endif %}
     {% if episode.articles %}
-    <ol>
-        {% for article in episode.articles %}
-        <li>
-            {% if article.url.startswith(('https://', 'http://')) %}
-            <a href="{{ article.url }}">{{ article.title }}</a>
-            {% else %}
-            {{ article.title }}
-            {% endif %}
-        </li>
-        {% endfor %}
-    </ol>
+    <details>
+        <summary>{{ episode.articles|length }} related {{ 'article' if episode.articles|length == 1 else 'articles' }}</summary>
+        <ol>
+            {% for article in episode.articles %}
+            <li>
+                {% if article.url.startswith(('https://', 'http://')) %}
+                <a href="{{ article.url }}">{{ article.title }}</a>
+                {% else %}
+                {{ article.title }}
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+    </details>
     {% else %}
     <p>Article links weren’t saved for this episode. New episodes will include their source articles here.</p>
     {% endif %}
@@ -81,10 +84,8 @@
     <div style="padding-top: 0.5rem; font-size: 0.9rem; color: var(--text);">
         <p>Manually added articles (via Add Links) are <strong>always included</strong> in weekly podcasts.
         Article content is fetched on-demand from original URLs.</p>
-        <p style="margin-bottom: 0.25rem;">Current provider: <strong>{{ provider|default('notebooklm') }}</strong>
-        {% if provider|default('notebooklm') == 'notebooklm' %}
-        (Google NotebookLM — high quality, ~10-15 min generation time)
-        {% elif provider|default('notebooklm') == 'edge-tts' %}
+        <p style="margin-bottom: 0.25rem;">Current provider: <strong>{{ provider|default('gemini-api-tts') }}</strong>
+        {% if provider == 'edge-tts' %}
         (Claude script + Microsoft edge-tts — free, ~3-5 min generation time)
         {% elif provider == 'gemini-tts' %}
         (Claude script + Google Gemini voices through the official Cloud Text-to-Speech API)

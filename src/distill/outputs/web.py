@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from distill.config import get_db_path
 from distill.db import Database
+from distill.outputs.podcast_providers import DEFAULT_PODCAST_PROVIDER
 from distill.processing.recommendation import (
     ReadingSlateRequest,
     meets_quality_gate,
@@ -132,11 +133,12 @@ def create_app(config: dict) -> FastAPI:
             ]
         finally:
             db.close()
-        provider = config.get("podcast", {}).get("provider", "notebooklm")
+        provider = config.get("podcast", {}).get("provider", DEFAULT_PODCAST_PROVIDER)
         ctx = {"episodes": episodes, "generating": _generating, "provider": provider}
         if _generating:
-            time_est = "10-15 minutes" if provider == "notebooklm" else "3-5 minutes"
-            ctx["message"] = f"Podcast generation in progress ({provider}). Refresh in {time_est}."
+            ctx["message"] = (
+                f"Podcast generation in progress ({provider}). Refresh in a few minutes."
+            )
         elif _last_error:
             ctx["error"] = _last_error
             _last_error = None

@@ -33,7 +33,7 @@ specific reader.
 ```text
 Collect → Extract → Deduplicate → Assess → Select → Digest → Podcast
    │         │           │           │         │         │         │
-   │         │           │           │         │         │         └─ NotebookLM or edge-tts
+   │         │           │           │         │         │         └─ Gemini Flash TTS
    │         │           │           │         │         └─ Weekly Markdown briefing
    │         │           │           │         └─ Quality gates + diversity + relevant backfill
    │         │           │           └─ Claude judges evidence against your reader profile
@@ -139,8 +139,6 @@ Choose one provider under `podcast.provider` in `config.yaml`:
   Google account and save it as `GEMINI_API_KEY` in `.env`. Use a free-tier project; billing
   is not required for its available Flash TTS quota. Claude script generation still uses your
   Anthropic key. Your Gemini app subscription does not determine the API project's quota.
-- **NotebookLM:** set `provider: notebooklm`, then authenticate once with
-  `uv run notebooklm login`. Use `uv run notebooklm doctor` when authentication needs checking.
 - **edge-tts:** set `provider: edge-tts`. It uses your Anthropic key to write the script and does
   not require Google authentication.
 - **Gemini Cloud TTS (paid, official Google API):** set `provider: gemini-tts`. Claude writes the script;
@@ -149,7 +147,7 @@ Choose one provider under `podcast.provider` in `config.yaml`:
   `gcloud auth application-default login`. The authenticated identity needs
   `aiplatform.endpoints.predict` (included in the Vertex AI User role) and permission to use the
   project's services. On a server, use its service identity through Application Default Credentials.
-  NotebookLM's browser login is not used. See the [Google setup guide](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#before_you_begin).
+  See the [Google setup guide](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#before_you_begin).
 
 Generate an episode only after the reading pipeline has produced a slate:
 
@@ -292,7 +290,6 @@ controls, and reduced-motion preferences.
 
 | Provider | How it works | Requirements |
 | --- | --- | --- |
-| `notebooklm` | Uploads a source document, requests an Audio Overview, and downloads it | Interactive `notebooklm login` session |
 | `edge-tts` | Claude writes a two-host script; Microsoft voices synthesize the segments | `ANTHROPIC_API_KEY` |
 | `gemini-api-tts` (default) | Claude writes a two-host script; Gemini Flash TTS voices the dialogue through the official Developer API | `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`; free-tier TTS quota available |
 | `gemini-tts` | Claude writes a two-host script; Google's official Cloud TTS API voices the dialogue | `ANTHROPIC_API_KEY`, Google Cloud project with billing and Application Default Credentials |
@@ -300,10 +297,7 @@ controls, and reduced-motion preferences.
 Select the provider under `podcast.provider` in `config.yaml`. Podcast failures are surfaced in
 the dashboard, and authentication failures explain how to reauthenticate.
 
-> [!WARNING]
-> `notebooklm-py` is an unofficial, reverse-engineered NotebookLM client—not an official Google
-> API. It can break when Google changes the product and may be unsuitable for some environments.
-> Both Gemini providers use documented Google APIs.
+Both Gemini providers use documented Google APIs. No browser login or session cookies are required.
 
 `gemini-api-tts` uses `gemini-3.8-flash-tts` through the Interactions API, with explicit speaker
 metadata and WAV output. Set `podcast.gemini_api_model` to `gemini-3.8-flash-lite-tts` to use
@@ -313,8 +307,9 @@ with `podcast.gemini_model`. The configured voices are Puck/Aoede, adjustable wi
 `podcast.gemini_voice_a` and `podcast.gemini_voice_b`. The Developer API gives each host
 separate delivery direction, configurable with `podcast.gemini_style_a` and
 `podcast.gemini_style_b`. Direction is passed as speech metadata, never spoken dialogue.
-Script generation shares NotebookLM's briefing instructions and asks for a connected deep-dive
-conversation with short exchanges, follow-up questions, and natural attribution of claims.
+Script generation produces a connected deep-dive conversation with short exchanges, follow-up
+questions, and natural attribution of claims. Each episode keeps its original article links in a
+collapsed list below the player; expand the article count to browse the sources.
 
 Dialogue is divided into requests of at most 3,000 UTF-8 bytes, also below Cloud TTS's
 4,000-byte text limit. Each response is checked for empty or incomplete PCM data, unexpected format, and implausible
@@ -342,7 +337,6 @@ Distill is local-first, but it is not fully offline:
 - Slack-derived articles may contain internal context. Only enable Slack ingestion and scoring
   when sending that content to the configured model provider is permitted.
 - Jina Reader receives article URLs only when local extraction fallbacks fail.
-- NotebookLM receives the selected podcast source document when that provider is enabled.
 - With `gemini-api-tts`, Anthropic receives selected article text for script generation and the
   Gemini Developer API receives the generated dialogue. The API key stays in your local environment;
   it is sent only to Google's API in a request header. Free-tier data terms differ from paid-tier

@@ -478,7 +478,6 @@ dependencies = [
     { name = "google-auth", extra = ["requests"] },
     { name = "httpx" },
     { name = "jinja2" },
-    { name = "notebooklm-py" },
     { name = "playwright" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -509,7 +508,6 @@ requires-dist = [
     { name = "google-auth", extras = ["requests"], specifier = ">=2.0" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "notebooklm-py", specifier = ">=0.8.1" },
     { name = "playwright", specifier = ">=1.58.0" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
@@ -1193,21 +1191,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/51/63fe664f3908c97be9d2e4f1158eb633317598cfa6e1fc14af5383f17512/networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509", size = 2517025, upload-time = "2025-12-08T17:02:39.908Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl", hash = "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762", size = 2068504, upload-time = "2025-12-08T17:02:38.159Z" },
-]
-
-[[package]]
-name = "notebooklm-py"
-version = "0.8.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "filelock" },
-    { name = "httpx" },
-    { name = "rich" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/ff/5c352c1bf66a0f5ae59157ceb544991d5733ef379d4e17bc70253c22fda4/notebooklm_py-0.8.1.tar.gz", hash = "sha256:43ba51a9609a9530bfcd9ad06c1035edeac4b0e40156a5a7ee7ee302621666cd", size = 16334264, upload-time = "2026-08-14T15:00:29.158Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/82/bca1ba131ba994675dfd44cf7f731f9725e0265b056ad8b6bdc0467c9201/notebooklm_py-0.8.1-py3-none-any.whl", hash = "sha256:4d7bc3e16bedde8296a85aa0376a69e49c744d82ffa9836447c584353e2001d8", size = 1617300, upload-time = "2026-08-14T15:00:26.95Z" },
 ]
 
 [[package]]

@@ -216,6 +216,8 @@ def test_podcasts_empty_state(tmp_db):
     assert "No podcasts yet." in response.text
     assert 'href="/podcasts" class="active" aria-current="page"' in response.text
     assert 'href="/podcast-articles"' not in response.text
+    assert "Current provider: <strong>gemini-api-tts</strong>" in response.text
+    assert "NotebookLM" not in response.text
 
 
 def test_podcasts_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
@@ -243,6 +245,11 @@ def test_podcasts_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
         assert f"Article &lt;{i}&gt;" in section
         assert f"article-{1 - i}" not in section
         assert f'src="/podcast-file/custom-{i}"' in section
+        disclosure = section.split("<details>", 1)[1].split("</details>", 1)[0]
+        assert "<summary>1 related article</summary>" in disclosure
+        assert f'href="https://example.com/article-{i}"' in disclosure
+        assert "<audio" not in disclosure
+        assert "<details open" not in section
     assert "Article links weren’t saved for this episode." in response.text
     assert "digest-only" not in response.text
     assert 'action="/podcasts/generate"' in response.text

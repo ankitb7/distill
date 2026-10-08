@@ -24,7 +24,7 @@ This is a single-context repository. See `docs/agents/domain.md`.
 - Web: FastAPI + Jinja2 + Pico CSS + HTMX
 - Database: SQLite (WAL mode)
 - LLM: Anthropic Claude (scoring + podcast scripts)
-- TTS: NotebookLM or edge-tts
+- TTS: Gemini Developer API (default), Google Cloud TTS, or edge-tts
 - Embeddings: sentence-transformers (all-MiniLM-L6-v2)
 - Content extraction: trafilatura → readability-lxml → Jina Reader fallback
 

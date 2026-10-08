@@ -3,23 +3,24 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from distill.models import CollectedArticle, Source
+from distill.outputs.gemini_api_tts import GeminiAPITTSProvider
 from distill.outputs.podcast import generate_podcast
 from distill.outputs.podcast_providers import (
     EdgeTTSProvider,
-    NotebookLMProvider,
     get_podcast_provider,
 )
 
 
 def test_get_podcast_provider_returns_configured_adapter():
-    assert isinstance(get_podcast_provider("notebooklm", {}), NotebookLMProvider)
+    assert isinstance(get_podcast_provider("gemini-api-tts", {}), GeminiAPITTSProvider)
     edge = get_podcast_provider("edge-tts", {"voice_a": "A", "voice_b": "B"})
     assert edge == EdgeTTSProvider(voice_a="A", voice_b="B")
 
 
-def test_get_podcast_provider_rejects_unknown_adapter():
+@pytest.mark.parametrize("name", ["other", "notebooklm"])
+def test_get_podcast_provider_rejects_unknown_adapter(name):
     with pytest.raises(ValueError, match="Unknown podcast provider"):
-        get_podcast_provider("other", {})
+        get_podcast_provider(name, {})
 
 
 @pytest.mark.asyncio
@@ -132,8 +133,9 @@ async def test_weekly_podcast_records_source_links(tmp_db, tmp_path):
     audio.write_bytes(b"audio")
     provider = AsyncMock()
     provider.generate.return_value = audio
-    with patch("distill.outputs.podcast.get_podcast_provider", return_value=provider):
+    with patch("distill.outputs.podcast.get_podcast_provider", return_value=provider) as factory:
         await generate_podcast(tmp_db, {}, tmp_path)
+    factory.assert_called_once_with("gemini-api-tts", {})
     source = provider.generate.await_args.args[0]
     assert source.on_demand is False
     assert [a.id for a, _ in source.articles] == [aid]

@@ -1,4 +1,4 @@
-"""Podcast generation with pluggable providers: notebooklm (default) or edge-tts."""
+"""Podcast generation with Gemini Developer API speech as the default provider."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -9,7 +9,11 @@ from rich.console import Console
 from distill.db import Database
 from distill.models import Article, ScoreBreakdown
 from distill.outputs.digest import get_week_range
-from distill.outputs.podcast_providers import PodcastSource, get_podcast_provider
+from distill.outputs.podcast_providers import (
+    DEFAULT_PODCAST_PROVIDER,
+    PodcastSource,
+    get_podcast_provider,
+)
 from distill.processing.extractor import extract_articles
 from distill.processing.recommendation import ReadingSlateRequest, select_reading_slate
 
@@ -93,7 +97,7 @@ async def generate_podcast(
 
     podcast_config = config.get("podcast", {})
     top_n = podcast_config.get("top_n", 20)
-    provider_name = podcast_config.get("provider", "notebooklm")
+    provider_name = podcast_config.get("provider", DEFAULT_PODCAST_PROVIDER)
 
     _status("Collecting articles...")
     if article_ids is not None:

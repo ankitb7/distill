@@ -2,7 +2,6 @@ import os
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -11,6 +10,7 @@ import httpx
 from distill.models import Article, ScoreBreakdown
 
 StatusCallback = Callable[[str], None]
+DEFAULT_PODCAST_PROVIDER = "gemini-api-tts"
 PODCAST_BRIEF = (
     "You are briefing a senior software engineer who uses AI coding agents daily. "
     "Cover practical takeaways, genuine novelty, and what can be applied Monday "
@@ -33,8 +33,6 @@ class PodcastProvider(Protocol):
 
 
 def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
-    if name == "notebooklm":
-        return NotebookLMProvider()
     if name == "gemini-api-tts":
         from distill.outputs.gemini_api_tts import ALEX_STYLE, SARAH_STYLE, GeminiAPITTSProvider
 
@@ -60,39 +58,8 @@ def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
             voice_b=config.get("voice_b", "en-US-AriaNeural"),
         )
     raise ValueError(
-        f"Unknown podcast provider: {name!r}. Use: notebooklm, gemini-api-tts, gemini-tts, edge-tts"
+        f"Unknown podcast provider: {name!r}. Use: gemini-api-tts, gemini-tts, edge-tts"
     )
-
-
-class NotebookLMProvider:
-    async def generate(
-        self, source: PodcastSource, output_dir: Path, on_status: StatusCallback
-    ) -> Path:
-        from notebooklm import NotebookLMClient
-
-        title = (
-            f"Distill On-Demand — {source.label}"
-            if source.on_demand
-            else f"Distill — {source.label}"
-        )
-        source_text = _build_source_text(source)
-        (output_dir / f"podcast-source-{source.label}.md").write_text(source_text)
-        audio_path = output_dir / f"podcast-{source.label}.mp3"
-
-        async with await NotebookLMClient.from_storage() as client:
-            notebook = await client.notebooks.create(title)
-            await client.sources.add_text(
-                notebook.id,
-                title=f"Distill Articles — {source.label}",
-                content=source_text,
-                wait=True,
-            )
-            status = await client.artifacts.generate_audio(notebook.id, instructions=PODCAST_BRIEF)
-            on_status("Waiting for NotebookLM audio (this takes a few minutes)...")
-            await client.artifacts.wait_for_completion(notebook.id, status.task_id, timeout=600.0)
-            await client.artifacts.download_audio(notebook.id, str(audio_path))
-
-        return audio_path
 
 
 @dataclass(frozen=True)
@@ -116,31 +83,6 @@ class EdgeTTSProvider:
         on_status("Synthesizing audio with edge-tts...")
         await _synthesize_edge_tts(segments, audio_path, voice_a=self.voice_a, voice_b=self.voice_b)
         return audio_path
-
-
-def _build_source_text(source: PodcastSource) -> str:
-    lines = [
-        f"# Distill Weekly Briefing — {source.label}",
-        f"Generated: {datetime.now().strftime('%Y-%m-%d')}",
-        "",
-        "Top AI and engineering articles curated for senior software developers using AI "
-        "coding agents. Cover practical implications, genuine novelty, and key technical "
-        "insights that can be applied immediately.",
-        "",
-    ]
-    for rank, (article, score) in enumerate(source.articles, 1):
-        manual_tag = " [MUST COVER]" if "manual" in (article.tags or []) else ""
-        lines.extend([f"## {rank}. {article.title}{manual_tag}", ""])
-        if article.author:
-            lines.append(f"By: {article.author}")
-        lines.append(f"Source: {article.source.value}")
-        if score.composite_score > 0:
-            lines.append(f"Quality Score: {score.composite_score:.2f}")
-        lines.extend(["", _article_text(source, article)[:3000]])
-        if score.reasoning:
-            lines.extend(["", f"Why this matters: {score.reasoning}"])
-        lines.extend(["", "---", ""])
-    return "\n".join(lines)
 
 
 def _article_text(source: PodcastSource, article: Article) -> str:
