@@ -200,7 +200,7 @@ podcast:
   provider: gemini-api-tts  # Official Gemini Developer API; free-tier quota with GEMINI_API_KEY
   gemini_api_model: gemini-3.8-flash-tts
   # Optional paid Cloud TTS provider: gemini-tts
-  gemini_project: ai-pulse-pod-6591
+  gemini_project: ""  # Use GOOGLE_CLOUD_PROJECT or the project from Application Default Credentials
   gemini_model: gemini-2.5-pro-tts
   gemini_voice_a: Puck
   gemini_voice_b: Aoede

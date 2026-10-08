@@ -330,6 +330,19 @@ def test_add_links_htmx_response_is_results_fragment():
     assert "<form" not in resp.text
 
 
+def test_add_links_supports_submission_without_htmx(tmp_db):
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    page = client.get("/add")
+    assert 'method="post" action="/add"' in page.text
+    with patch(
+        "distill.processing.intake.add_manual_articles", new_callable=AsyncMock, return_value=[]
+    ) as add:
+        response = client.post("/add", data={"urls": "https://example.com/article"})
+    assert response.status_code == 200
+    assert "<!DOCTYPE html>" in response.text
+    assert add.await_args.args[1][0].url == "https://example.com/article"
+
+
 def test_podcasts_empty_state(tmp_db):
     client = TestClient(create_app(_make_config(tmp_db.db_path)))
     response = client.get("/podcasts")

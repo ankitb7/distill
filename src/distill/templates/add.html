@@ -7,7 +7,7 @@
     <p>Drop one URL per line. Content will be fetched and extracted automatically.</p>
 </div>
 
-<form class="panel" hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
+<form class="panel" method="post" action="/add" hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
     <label for="article-urls">Article URLs</label>
     <textarea id="article-urls" name="urls" rows="5" placeholder="https://example.com/great-ai-article
 https://another.com/llm-deep-dive
