@@ -45,19 +45,12 @@ def _archive_entry(digest: Digest) -> dict:
     }
 
 
-def _build_slack_channel_map(config: dict) -> dict[str, str]:
-    """Build channel_name -> channel_id mapping from config."""
-    channels = config.get("sources", {}).get("slack", {}).get("channels", [])
-    return {ch["name"]: ch["id"] for ch in channels if "name" in ch and "id" in ch}
-
-
 def create_app(config: dict) -> FastAPI:
     app = FastAPI(title="Distill")
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["plain_text_excerpt"] = plain_text_excerpt
     db_path = get_db_path(config)
-    slack_channel_map = _build_slack_channel_map(config)
     db = Database(db_path)
     try:
         db.init_schema()
@@ -101,7 +94,6 @@ def create_app(config: dict) -> FastAPI:
                 "source_filter": source,
                 "limit": limit,
                 "quality_count": quality_count,
-                "slack_channel_map": slack_channel_map,
             },
         )
 

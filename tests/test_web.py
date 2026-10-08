@@ -106,6 +106,30 @@ def test_index_with_articles():
     assert "Web Test Article" in resp.text
 
 
+def test_slack_article_title_opens_article_not_slack_message(tmp_db):
+    url = "https://example.com/engineering-article"
+    aid = tmp_db.insert_article(
+        CollectedArticle(
+            url=url,
+            title="Shared engineering article",
+            source=Source.SLACK,
+            source_id="1790233205.241999",
+            tags=["engineering"],
+            content_text="Practical engineering evidence.",
+        )
+    )
+    tmp_db.insert_score(aid, ScoreBreakdown(composite_score=0.8))
+    config = _make_config(tmp_db.db_path)
+    config["sources"] = {"slack": {"channels": [{"name": "engineering", "id": "C123456"}]}}
+    response = TestClient(create_app(config)).get("/")
+    assert response.status_code == 200
+    assert (
+        f'<a href="{url}" target="_blank" rel="noopener" class="article-title">'
+        "Shared engineering article" in response.text
+    )
+    assert "https://miro.slack.com/archives/C123456/" not in response.text
+
+
 def test_index_uses_plain_text_content_when_summary_is_missing():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
