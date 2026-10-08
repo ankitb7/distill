@@ -218,3 +218,43 @@ def test_digest_and_podcast_persistence(tmp_db, tmp_path):
     assert updated.markdown == "# Digest"
     assert updated.podcast_path == str(podcast_path)
     assert updated.article_count == 4
+
+
+def test_podcast_links_survive_cleanup_and_digest_regeneration(tmp_db, tmp_path):
+    ids = [
+        tmp_db.insert_article(
+            CollectedArticle(
+                url=f"https://example.com/{i}", title=f"Article {i}", source=Source.RSS
+            )
+        )
+        for i in range(2)
+    ]
+    articles = [tmp_db.get_article_with_score(aid)[0] for aid in reversed(ids)]
+    audio = tmp_path / "episode.mp3"
+    tmp_db.save_podcast("custom-episode", audio, 2, articles=articles)
+    tmp_db.insert_digest("digest-only", "# Other week", 10)
+    digest_id = tmp_db.insert_digest("custom-episode", "# Regenerated digest", 10)
+    tmp_db.delete_old_articles("2099-01-01")
+    tmp_db.init_schema()
+
+    episodes = tmp_db.list_podcasts()
+    assert len(episodes) == 1
+    assert episodes[0].id == digest_id
+    assert episodes[0].podcast_path == str(audio)
+    assert episodes[0].article_count == 2
+    assert episodes[0].markdown == "# Regenerated digest"
+    assert [a.url for a in tmp_db.get_podcast_articles("custom-episode")] == [
+        a.url for a in articles
+    ]
+    assert tmp_db.get_podcast_articles("digest-only") == []
+
+
+def test_replacing_podcast_replaces_its_source_links(tmp_db, tmp_path):
+    aid = tmp_db.insert_article(
+        CollectedArticle(url="https://example.com/original", title="Original", source=Source.RSS)
+    )
+    article = tmp_db.get_article_with_score(aid)[0]
+    tmp_db.save_podcast("2026-W40", tmp_path / "old.mp3", 1, articles=[article])
+    tmp_db.save_podcast("2026-W40", tmp_path / "new.mp3", 0, articles=[])
+    assert tmp_db.get_podcast_articles("2026-W40") == []
+    assert len(tmp_db.list_podcasts()) == 1

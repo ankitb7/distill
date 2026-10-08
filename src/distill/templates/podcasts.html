@@ -46,7 +46,7 @@
 <table>
     <thead>
         <tr>
-            <th>Week</th>
+            <th>Episode</th>
             <th>Articles</th>
             <th>Created</th>
             <th>Listen</th>
@@ -56,7 +56,7 @@
         {% for p in podcasts %}
         <tr>
             <td><strong>{{ p.week_label }}</strong></td>
-            <td class="mono">{{ p.article_count }}</td>
+            <td><a href="/podcast-articles#episode-{{ p.week_label }}">{{ p.article_count }} articles<span class="visually-hidden"> for {{ p.week_label }}</span></a></td>
             <td>{{ p.created_at[:10] }}</td>
             <td>
                 {% if p.podcast_path and p.podcast_path.endswith('.mp3') %}

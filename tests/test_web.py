@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from distill.db import Database
@@ -205,3 +207,77 @@ def test_add_links_htmx_response_is_results_fragment():
     assert resp.status_code == 200
     assert "<!DOCTYPE html>" not in resp.text
     assert "<form" not in resp.text
+
+
+def test_podcast_articles_empty_state(tmp_db):
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    response = client.get("/podcast-articles")
+    assert response.status_code == 200
+    assert "No podcast articles yet." in response.text
+    assert 'href="/podcast-articles" class="active" aria-current="page"' in response.text
+    assert 'href="/podcasts" class="active"' not in response.text
+
+
+def test_podcast_articles_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
+    audio = tmp_path / "custom.mp3"
+    audio.write_bytes(b"audio")
+    for i in range(2):
+        aid = tmp_db.insert_article(
+            CollectedArticle(
+                url=f"https://example.com/article-{i}",
+                title=f"Article <{i}>",
+                source=Source.RSS,
+            )
+        )
+        article = tmp_db.get_article_with_score(aid)[0]
+        tmp_db.save_podcast(f"custom-{i}", audio, 1, articles=[article])
+    tmp_db.save_podcast("legacy", audio, 5)
+    tmp_db.insert_digest("digest-only", "# Digest", 20)
+    tmp_db.delete_old_articles("2099-01-01")
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    response = client.get("/podcast-articles")
+    assert response.status_code == 200
+    for i in range(2):
+        section = response.text.split(f'id="episode-custom-{i}"')[1].split("</section>")[0]
+        assert f'href="https://example.com/article-{i}"' in section
+        assert f"Article &lt;{i}&gt;" in section
+        assert f"article-{1 - i}" not in section
+        assert f'src="/podcast-file/custom-{i}"' in section
+    assert "Article links weren’t saved for this episode." in response.text
+    assert "digest-only" not in response.text
+    podcasts = client.get("/podcasts")
+    assert 'href="/podcast-articles#episode-custom-0"' in podcasts.text
+    assert "digest-only" not in podcasts.text
+    playback = client.get("/podcast-file/custom-0")
+    assert playback.content == b"audio"
+    assert playback.headers["content-type"] == "audio/mpeg"
+
+
+@pytest.mark.parametrize("ids", ["abc", ",", "1,", "99999", "-1"])
+def test_invalid_custom_episode_selection_does_not_start_generation(tmp_db, ids):
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    with patch("distill.outputs.podcast.generate_podcast", new_callable=AsyncMock) as generate:
+        response = client.post("/podcasts/generate", data={"article_ids": ids})
+    assert response.status_code == 422
+    generate.assert_not_called()
+
+
+def test_custom_episode_generated_through_web_has_source_links(tmp_db, tmp_path):
+    aid = tmp_db.insert_article(
+        CollectedArticle(
+            url="https://example.com/custom",
+            title="Custom article",
+            source=Source.RSS,
+            content_text="content " * 100,
+        )
+    )
+    audio = tmp_path / "web.mp3"
+    audio.write_bytes(b"audio")
+    provider = AsyncMock()
+    provider.generate.return_value = audio
+    with patch("distill.outputs.podcast.get_podcast_provider", return_value=provider):
+        with TestClient(create_app(_make_config(tmp_db.db_path))) as client:
+            response = client.post("/podcasts/generate", data={"article_ids": str(aid)})
+            assert response.status_code == 200
+            sources = client.get("/podcast-articles")
+    assert 'href="https://example.com/custom"' in sources.text

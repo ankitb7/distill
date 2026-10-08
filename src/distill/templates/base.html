@@ -742,7 +742,8 @@
             <li><a href="/search" {% if "/search" in request.url.path %}class="active" aria-current="page"{% endif %}>Search</a></li>
             <li><a href="/add" {% if request.url.path == "/add" %}class="active" aria-current="page"{% endif %}>Add links</a></li>
             <li><a href="/digests" {% if "/digest" in request.url.path %}class="active" aria-current="page"{% endif %}>Digests</a></li>
-            <li><a href="/podcasts" {% if "/podcast" in request.url.path %}class="active" aria-current="page"{% endif %}>Podcasts</a></li>
+            <li><a href="/podcasts" {% if request.url.path == "/podcasts" %}class="active" aria-current="page"{% endif %}>Podcasts</a></li>
+            <li><a href="/podcast-articles" {% if request.url.path == "/podcast-articles" %}class="active" aria-current="page"{% endif %}>Podcast articles</a></li>
             <li><a href="/stats" {% if request.url.path == "/stats" %}class="active" aria-current="page"{% endif %}>Stats</a></li>
             <li>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle light/dark theme">

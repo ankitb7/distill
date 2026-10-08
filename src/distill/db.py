@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from distill.models import Article, CollectedArticle, Digest, ScoreBreakdown, Source
+from distill.models import Article, CollectedArticle, Digest, PodcastArticle, ScoreBreakdown, Source
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS articles (
@@ -80,6 +80,14 @@ CREATE TABLE IF NOT EXISTS weekly_cache (
 );
 
 CREATE INDEX IF NOT EXISTS idx_weekly_cache_week ON weekly_cache(week_label);
+
+CREATE TABLE IF NOT EXISTS podcast_articles (
+    week_label TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    PRIMARY KEY (week_label, position)
+);
 """
 
 
@@ -461,13 +469,17 @@ class Database:
         return stats
 
     def insert_digest(self, week_label: str, markdown: str, article_count: int) -> int:
-        cursor = self.conn.execute(
-            """INSERT OR REPLACE INTO digests (week_label, markdown, article_count, created_at)
-               VALUES (?, ?, ?, ?)""",
+        self.conn.execute(
+            """INSERT INTO digests (week_label, markdown, article_count, created_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(week_label) DO UPDATE SET
+                   markdown = excluded.markdown,
+                   article_count = CASE WHEN digests.podcast_path IS NULL
+                       THEN excluded.article_count ELSE digests.article_count END""",
             (week_label, markdown, article_count, datetime.now().isoformat()),
         )
         self.conn.commit()
-        return cursor.lastrowid
+        return self.get_digest(week_label).id
 
     def list_digests(self) -> list[Digest]:
         rows = self.conn.execute("SELECT * FROM digests ORDER BY created_at DESC").fetchall()
@@ -479,7 +491,26 @@ class Database:
         ).fetchone()
         return self._row_to_digest(row) if row else None
 
-    def save_podcast(self, week_label: str, podcast_path: Path, article_count: int) -> None:
+    def save_podcast(
+        self,
+        week_label: str,
+        podcast_path: Path,
+        article_count: int,
+        articles: list[Article] | None = None,
+    ) -> None:
+        with self.conn:
+            self._save_podcast(week_label, podcast_path, article_count)
+            self.conn.execute("DELETE FROM podcast_articles WHERE week_label = ?", (week_label,))
+            self.conn.executemany(
+                "INSERT INTO podcast_articles (week_label, position, title, url) "
+                "VALUES (?, ?, ?, ?)",
+                [
+                    (week_label, position, article.title, article.url)
+                    for position, article in enumerate(articles or [])
+                ],
+            )
+
+    def _save_podcast(self, week_label: str, podcast_path: Path, article_count: int) -> None:
         self.conn.execute(
             """INSERT INTO digests
                    (week_label, podcast_path, article_count, created_at)
@@ -490,7 +521,19 @@ class Database:
                    created_at = excluded.created_at""",
             (week_label, str(podcast_path), article_count, datetime.now().isoformat()),
         )
-        self.conn.commit()
+
+    def list_podcasts(self) -> list[Digest]:
+        rows = self.conn.execute(
+            "SELECT * FROM digests WHERE podcast_path IS NOT NULL ORDER BY created_at DESC"
+        ).fetchall()
+        return [self._row_to_digest(row) for row in rows]
+
+    def get_podcast_articles(self, week_label: str) -> list[PodcastArticle]:
+        rows = self.conn.execute(
+            "SELECT title, url FROM podcast_articles WHERE week_label = ? ORDER BY position",
+            (week_label,),
+        ).fetchall()
+        return [PodcastArticle(**dict(row)) for row in rows]
 
     def get_manual_articles(
         self, week_start: str | None = None, week_end: str | None = None

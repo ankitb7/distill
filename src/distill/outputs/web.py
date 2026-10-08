@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -35,6 +35,11 @@ def create_app(config: dict) -> FastAPI:
     templates.env.filters["plain_text_excerpt"] = plain_text_excerpt
     db_path = get_db_path(config)
     slack_channel_map = _build_slack_channel_map(config)
+    db = Database(db_path)
+    try:
+        db.init_schema()
+    finally:
+        db.close()
 
     def get_db() -> Database:
         return Database(db_path)
@@ -120,7 +125,7 @@ def create_app(config: dict) -> FastAPI:
     async def podcasts_page(request: Request):
         global _last_error
         db = get_db()
-        podcasts = db.list_digests()
+        podcasts = db.list_podcasts()
         db.close()
         provider = config.get("podcast", {}).get("provider", "notebooklm")
         ctx = {"podcasts": podcasts, "generating": _generating, "provider": provider}
@@ -132,6 +137,18 @@ def create_app(config: dict) -> FastAPI:
             _last_error = None
         return templates.TemplateResponse(request, "podcasts.html", ctx)
 
+    @app.get("/podcast-articles", response_class=HTMLResponse)
+    async def podcast_articles_page(request: Request):
+        db = get_db()
+        try:
+            episodes = [
+                {"podcast": podcast, "articles": db.get_podcast_articles(podcast.week_label)}
+                for podcast in db.list_podcasts()
+            ]
+        finally:
+            db.close()
+        return templates.TemplateResponse(request, "podcast_articles.html", {"episodes": episodes})
+
     @app.post("/podcasts/generate")
     async def generate_podcast_now(article_ids: str = Form("")):
         global _generating
@@ -141,7 +158,17 @@ def create_app(config: dict) -> FastAPI:
 
             ids = None
             if article_ids.strip():
-                ids = [int(x.strip()) for x in article_ids.split(",") if x.strip()]
+                try:
+                    ids = [int(x.strip()) for x in article_ids.split(",")]
+                except ValueError as exc:
+                    raise HTTPException(422, "Enter article IDs separated by commas.") from exc
+                db = get_db()
+                try:
+                    found = {article.id for article, _ in db.get_articles_by_ids(ids)}
+                finally:
+                    db.close()
+                if set(ids) != found:
+                    raise HTTPException(422, "Some articles could not be found. Check the IDs.")
 
             _generating = True
 

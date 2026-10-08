@@ -84,3 +84,10 @@ class Digest(BaseModel):
     podcast_path: str | None = None
     article_count: int | None = None
     created_at: str
+
+
+class PodcastArticle(BaseModel):
+    """Permanent source link, independent of article retention."""
+
+    title: str
+    url: str
