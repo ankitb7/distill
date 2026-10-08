@@ -288,7 +288,15 @@ footer small { font-size: 11px; }
 .detail-link { display: inline-block; margin-top: 12px; font-size: 12px; }
 .article-content, .digest-content { padding: 20px; margin-top: 20px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
 .article-content.summary { font-style: italic; }
-.digest-content { font-size: 13px; }
+.digest-content { font-size: 14px; white-space: normal; }
+.digest-content > :first-child { margin-top: 0; }
+.digest-content > :last-child { margin-bottom: 0; }
+.digest-content h1 { font-size: 22px; }
+.digest-content h2 { font-size: 18px; margin-top: 24px; }
+.digest-content h3 { font-size: 16px; }
+.digest-content p, .digest-content ul, .digest-content ol { margin-bottom: 16px; }
+.digest-content hr { margin: 24px 0; border-color: var(--line); }
+.digest-content pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Forms and panels use the reference's compact controls. */
 .panel, .action-card { padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); box-shadow: none; }

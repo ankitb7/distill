@@ -12,6 +12,7 @@ from rich.console import Console
 from distill.config import get_db_path
 from distill.db import Database
 from distill.models import Digest
+from distill.outputs.markdown import render_digest_markdown
 from distill.outputs.podcast_providers import (
     DEFAULT_PODCAST_PROVIDER,
     PODCAST_PROVIDERS,
@@ -138,7 +139,11 @@ def create_app(config: dict) -> FastAPI:
         db.close()
         if not digest:
             return HTMLResponse("Digest not found", status_code=404)
-        return templates.TemplateResponse(request, "digest_detail.html", {"digest": digest})
+        return templates.TemplateResponse(
+            request,
+            "digest_detail.html",
+            {"digest": digest, "digest_html": render_digest_markdown(digest.markdown or "")},
+        )
 
     @app.get("/stats", response_class=HTMLResponse)
     async def stats_page(request: Request):

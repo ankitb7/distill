@@ -8,7 +8,7 @@
     <p>{{ digest.article_count }} selected articles · created {{ digest.created_at[:10] }}</p>
 </div>
 {% if digest.markdown and digest.markdown.strip() %}
-<pre class="digest-content">{{ digest.markdown }}</pre>
+<div class="digest-content">{{ digest_html | safe }}</div>
 {% else %}
 <div class="empty-state">
     <p>A written digest hasn’t been generated for this episode.</p>

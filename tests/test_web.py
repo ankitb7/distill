@@ -245,9 +245,34 @@ def test_digest_detail_uses_application_shell():
     assert resp.status_code == 200
     assert 'class="brand-mark"' in resp.text
     assert "2026-W36 Digest — Distill" in resp.text
-    assert "# Useful evidence" in resp.text
+    assert "<h1>Useful evidence</h1>" in resp.text
     assert 'href="/digests"' in resp.text
     assert "Back to digests" in resp.text
+
+
+def test_digest_renders_rich_text_and_safe_external_links(tmp_db):
+    tmp_db.insert_digest(
+        "rich-text",
+        "## Article\n\n**Evidence** and *context*.\n\n"
+        "- First point\n- Second point\n\n"
+        "[Read article](https://example.com/article)\n\n"
+        '<script>alert("unsafe")</script>\n\n'
+        "[Unsafe](javascript:alert%281%29)\n\n"
+        '```python\nprint("hello")\n```',
+        1,
+    )
+    response = TestClient(create_app(_make_config(tmp_db.db_path))).get("/digest/rich-text")
+    assert response.status_code == 200
+    assert "<h2>Article</h2>" in response.text
+    assert "<strong>Evidence</strong> and <em>context</em>" in response.text
+    assert "<li>First point</li>" in response.text
+    assert '<pre><code class="language-python">' in response.text
+    assert 'href="https://example.com/article" target="_blank" rel="noopener noreferrer"' in (
+        response.text
+    )
+    assert "&lt;script&gt;" in response.text
+    assert '<script>alert("unsafe")</script>' not in response.text
+    assert 'href="javascript:' not in response.text
 
 
 def test_audio_only_records_are_not_advertised_as_written_digests(tmp_db, tmp_path):
