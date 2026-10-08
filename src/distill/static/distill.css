@@ -140,7 +140,7 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { scroll-padding-top: 1rem; -webkit-text-size-adjust: 100%; }
+html { scroll-padding-top: 80px; -webkit-text-size-adjust: 100%; }
 body {
     margin: 0;
     min-height: 100vh;
@@ -184,6 +184,10 @@ code { background: var(--tag-bg); color: var(--tag-fg); }
 
 /* Compact application header. Navigation keeps its native links and current-page state. */
 nav.container {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
     width: 100%;
     max-width: none;
     min-height: 60px;
@@ -359,6 +363,7 @@ table tbody tr:last-child td { border-bottom: 0; }
 .empty-state { padding: 32px 16px; text-align: center; color: var(--fg-faint); font-size: 14px; }
 
 @media (max-width: 640px) {
+    html { scroll-padding-top: 128px; }
     nav.container { flex-wrap: wrap; gap: 8px; }
     nav.container > .nav-tabs { flex-basis: 100%; order: 3; overflow-x: auto; padding-bottom: 4px; }
     nav.container a { padding: 6px 8px; }
