@@ -67,15 +67,6 @@ def create_app(config: dict) -> FastAPI:
     def get_db() -> Database:
         return Database(db_path)
 
-    def shell_context(request: Request) -> dict:
-        db = get_db()
-        try:
-            return {"library_count": db.get_stats()["total_articles"]}
-        finally:
-            db.close()
-
-    templates.context_processors.append(shell_context)
-
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request, source: str = "", limit: int = 50):
         from distill.outputs.digest import get_week_range

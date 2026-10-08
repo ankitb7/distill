@@ -164,7 +164,7 @@ def test_stats_page():
     assert resp.status_code == 200
 
 
-def test_library_counts_and_percentages_use_real_data(tmp_db):
+def test_stats_percentages_use_real_data(tmp_db):
     for i in range(4):
         tmp_db.insert_article(
             CollectedArticle(
@@ -177,7 +177,7 @@ def test_library_counts_and_percentages_use_real_data(tmp_db):
     client = TestClient(create_app(_make_config(tmp_db.db_path)))
     response = client.get("/stats")
     assert response.status_code == 200
-    assert "4 in library" in response.text
+    assert "in library" not in response.text
     assert "50.0% · full text extracted" in response.text
     assert "75%" in response.text
     assert "25%" in response.text

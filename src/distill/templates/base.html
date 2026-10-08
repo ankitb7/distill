@@ -30,7 +30,6 @@
                 </a>
             </li>
         </ul>
-        <span class="library-count">{{ '{:,}'.format(library_count) }} in library</span>
         <ul class="nav-tabs">
             <li><a href="/" {% if request.url.path == "/" %}class="active" aria-current="page"{% endif %}>Briefing</a></li>
             <li><a href="/search" {% if "/search" in request.url.path %}class="active" aria-current="page"{% endif %}>Search</a></li>
