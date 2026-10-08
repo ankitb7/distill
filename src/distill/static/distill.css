@@ -186,9 +186,9 @@ code { background: var(--tag-bg); color: var(--tag-fg); }
 nav.container {
     width: 100%;
     max-width: none;
-    min-height: 44px;
+    min-height: 60px;
     margin: 0;
-    padding: 8px max(16px, env(safe-area-inset-left));
+    padding: 12px max(16px, env(safe-area-inset-left));
     border-bottom: 1px solid var(--line);
     display: flex;
     justify-content: flex-start;
@@ -201,20 +201,20 @@ nav.container a {
     display: inline-flex;
     align-items: center;
     margin: 0;
-    padding: 4px 8px;
+    padding: 6px 10px;
     border-radius: 4px;
     color: var(--fg-muted);
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 20px;
     text-decoration: none;
     white-space: nowrap;
 }
 nav.container a:hover { background: var(--row-selected); color: var(--fg); }
 nav.container a.active { background: var(--tab-active); color: var(--tab-active-fg); }
-nav.container .brand { gap: 8px; padding: 0; color: var(--fg); font-size: 14px; font-weight: 600; }
+nav.container .brand { gap: 10px; padding: 0; color: var(--fg); font-size: 18px; font-weight: 600; }
 nav.container .brand:hover { background: transparent; }
-.brand-mark { width: 18px; height: 18px; border-radius: 4px; }
-.brand-copy { line-height: 20px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 4px; }
+.brand-copy { line-height: 24px; }
 .brand-copy small { display: none; }
 nav.container > .nav-tabs { flex: 1; }
 nav.container > .nav-actions { gap: 8px; margin-left: auto; }
@@ -223,15 +223,15 @@ nav.container > .nav-actions { gap: 8px; margin-left: auto; }
     place-items: center;
     padding: 4px 8px;
     margin: 0;
-    width: 32px;
-    min-height: 26px;
+    width: 36px;
+    min-height: 34px;
     border: 1px solid var(--line-strong);
     background: transparent;
     color: var(--fg-faint);
     box-shadow: none;
 }
 .theme-toggle:hover { background: var(--row-selected); border-color: var(--line-strong); color: var(--fg); }
-.theme-toggle svg { width: 14px; height: 14px; }
+.theme-toggle svg { width: 18px; height: 18px; }
 [data-theme="dark"] .icon-moon, [data-theme="light"] .icon-sun { display: none; }
 
 /* Use the available screen width with modest, responsive side gutters. */
@@ -381,11 +381,11 @@ table tbody tr:last-child td { border-bottom: 0; }
 nav.container .header-button, nav.container .add-link {
     border: 1px solid var(--line-strong);
     border-radius: 4px;
-    padding: 2px 8px;
+    padding: 6px 10px;
     background: transparent;
     color: var(--fg-faint);
-    font-size: 12px;
-    line-height: 16px;
+    font-size: 13px;
+    line-height: 20px;
     font-weight: 400;
     white-space: nowrap;
 }
