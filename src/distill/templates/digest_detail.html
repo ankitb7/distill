@@ -1,10 +1,20 @@
 {% extends "base.html" %}
 {% block title %}{{ digest.week_label }} Digest — Distill{% endblock %}
 {% block content %}
+<a class="row-button" href="/digests" style="margin-bottom: 16px;">← Back to digests</a>
 <div class="page-header">
     <span class="eyebrow">Weekly digest</span>
     <h1>{{ digest.week_label }}</h1>
     <p>{{ digest.article_count }} selected articles · created {{ digest.created_at[:10] }}</p>
 </div>
-<pre class="digest-content">{{ digest.markdown or "This digest is empty." }}</pre>
+{% if digest.markdown and digest.markdown.strip() %}
+<div class="digest-content">{{ digest_html | safe }}</div>
+{% else %}
+<div class="empty-state">
+    <p>A written digest hasn’t been generated for this episode.</p>
+    {% if digest.podcast_path %}
+    <p><a href="/podcasts#episode-{{ digest.week_label }}">Listen to the podcast and explore its articles</a></p>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}

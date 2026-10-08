@@ -24,7 +24,7 @@ This is a single-context repository. See `docs/agents/domain.md`.
 - Web: FastAPI + Jinja2 + Pico CSS + HTMX
 - Database: SQLite (WAL mode)
 - LLM: Anthropic Claude (scoring + podcast scripts)
-- TTS: NotebookLM or edge-tts
+- TTS: Gemini Developer API (default), Google Cloud TTS, edge-tts, or optional Podcastfy + Edge
 - Embeddings: sentence-transformers (all-MiniLM-L6-v2)
 - Content extraction: trafilatura → readability-lxml → Jina Reader fallback
 
@@ -49,6 +49,7 @@ uv run distill score              # Score articles (engagement + Claude)
 # Outputs
 uv run distill digest             # Generate markdown digest
 uv run distill podcast            # Generate weekly podcast
+uv run distill podcast-setup      # Install the isolated optional Podcastfy runtime
 uv run distill archive            # Digest + podcast + cache top articles + prune old articles
 uv run distill serve              # Web dashboard at http://localhost:8585
 
@@ -101,6 +102,9 @@ config.yaml             # Main configuration (sources, scoring, dedup, web, podc
 - Copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`
 - Never commit `.env` files or API keys
 - Config lives in `config.yaml` — all CLI commands accept `--config PATH` to override
+- Podcastfy runs in `.venv-podcastfy` via an isolated subprocess. Use
+  `--provider podcastfy-edge --script-provider anthropic|openai|gemini` or the dashboard
+  controls. Its models and voices live under `podcast.podcastfy`; keys remain in `.env`.
 
 ## Code Style
 

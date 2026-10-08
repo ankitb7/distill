@@ -197,7 +197,26 @@ web:
 podcast:
   day: sunday
   top_n: 20
-  provider: notebooklm  # notebooklm (default), edge-tts (free, no key), or openai (requires OPENAI_API_KEY)
+  provider: gemini-api-tts  # Official Gemini Developer API; free-tier quota with GEMINI_API_KEY
+  gemini_api_model: gemini-3.8-flash-tts
+  # Optional paid Cloud TTS provider: gemini-tts
+  gemini_project: ""  # Use GOOGLE_CLOUD_PROJECT or the project from Application Default Credentials
+  gemini_model: gemini-2.5-pro-tts
+  gemini_voice_a: Puck
+  gemini_voice_b: Aoede
+  # Optional Gemini Developer API delivery overrides: gemini_style_a, gemini_style_b
   # Edge TTS voices (if provider: edge-tts)
   voice_a: en-US-GuyNeural
   voice_b: en-US-AriaNeural
+  # Optional provider: podcastfy-edge (install with: uv run distill podcast-setup)
+  podcastfy:
+    script_provider: anthropic  # anthropic | openai | gemini
+    models:
+      anthropic: claude-sonnet-4-5-20250929
+      openai: gpt-4.1-mini
+      gemini: gemini-3.8-flash
+    python: .venv-podcastfy/bin/python
+    voice_a: en-US-AndrewMultilingualNeural
+    voice_b: en-US-AvaMultilingualNeural
+    target_words: 2000
+    timeout_seconds: 1800

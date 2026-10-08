@@ -218,3 +218,95 @@ def test_digest_and_podcast_persistence(tmp_db, tmp_path):
     assert updated.markdown == "# Digest"
     assert updated.podcast_path == str(podcast_path)
     assert updated.article_count == 4
+
+
+def test_digest_list_excludes_missing_or_blank_written_content(tmp_db, tmp_path):
+    tmp_db.save_podcast("audio-only", tmp_path / "audio.mp3", 1)
+    tmp_db.insert_digest("empty", "", 0)
+    tmp_db.insert_digest("blank", "   ", 0)
+    tmp_db.insert_digest("written", "# Digest", 1)
+    assert [digest.week_label for digest in tmp_db.list_digests()] == ["written"]
+    assert [podcast.week_label for podcast in tmp_db.list_podcasts()] == ["audio-only"]
+
+
+def test_podcast_links_survive_cleanup_and_digest_regeneration(tmp_db, tmp_path):
+    ids = [
+        tmp_db.insert_article(
+            CollectedArticle(
+                url=f"https://example.com/{i}", title=f"Article {i}", source=Source.RSS
+            )
+        )
+        for i in range(2)
+    ]
+    articles = [tmp_db.get_article_with_score(aid)[0] for aid in reversed(ids)]
+    audio = tmp_path / "episode.mp3"
+    tmp_db.save_podcast("custom-episode", audio, 2, articles=articles, title="Proving agent value")
+    tmp_db.insert_digest("digest-only", "# Other week", 10)
+    digest_id = tmp_db.insert_digest("custom-episode", "# Regenerated digest", 10)
+    tmp_db.delete_old_articles("2099-01-01")
+    tmp_db.init_schema()
+
+    episodes = tmp_db.list_podcasts()
+    assert len(episodes) == 1
+    assert episodes[0].id == digest_id
+    assert episodes[0].podcast_path == str(audio)
+    assert episodes[0].article_count == 2
+    assert episodes[0].markdown == "# Regenerated digest"
+    assert episodes[0].podcast_title == "Proving agent value"
+    assert [a.url for a in tmp_db.get_podcast_articles("custom-episode")] == [
+        a.url for a in articles
+    ]
+    assert tmp_db.get_podcast_articles("digest-only") == []
+
+
+def test_replacing_podcast_replaces_its_source_links(tmp_db, tmp_path):
+    aid = tmp_db.insert_article(
+        CollectedArticle(url="https://example.com/original", title="Original", source=Source.RSS)
+    )
+    article = tmp_db.get_article_with_score(aid)[0]
+    tmp_db.save_podcast("2026-W40", tmp_path / "old.mp3", 1, articles=[article])
+    tmp_db.save_podcast("2026-W40", tmp_path / "new.mp3", 0, articles=[])
+    assert tmp_db.get_podcast_articles("2026-W40") == []
+    assert len(tmp_db.list_podcasts()) == 1
+
+
+def test_renaming_podcast_preserves_episode_data(tmp_db, tmp_path):
+    aid = tmp_db.insert_article(
+        CollectedArticle(url="https://example.com/source", title="Source", source=Source.RSS)
+    )
+    article = tmp_db.get_article_with_score(aid)[0]
+    tmp_db.save_podcast("episode", tmp_path / "audio.mp3", 1, articles=[article])
+    tmp_db.insert_digest("episode", "# Digest", 1)
+    before = tmp_db.get_digest("episode")
+    sources = tmp_db.get_podcast_articles("episode")
+    tmp_db.set_podcast_title("episode", "Evidence before approval")
+    after = tmp_db.get_digest("episode")
+    assert after.podcast_title == "Evidence before approval"
+    assert after.model_dump(exclude={"podcast_title"}) == before.model_dump(
+        exclude={"podcast_title"}
+    )
+    assert tmp_db.get_podcast_articles("episode") == sources
+    tmp_db.save_podcast("episode", tmp_path / "new.mp3", 1, articles=[article])
+    assert tmp_db.get_digest("episode").podcast_title == "Evidence before approval"
+
+
+def test_podcast_title_migration_preserves_legacy_digest(tmp_path, monkeypatch):
+    import distill.db as db_module
+
+    db = db_module.Database(tmp_path / "legacy.db")
+    try:
+        with monkeypatch.context() as legacy:
+            legacy.setattr(
+                db_module, "SCHEMA", db_module.SCHEMA.replace("    podcast_title TEXT,\n", "")
+            )
+            legacy.setattr(db_module.Database, "_ensure_podcast_title_column", lambda self: None)
+            db.init_schema()
+            db.insert_digest("legacy", "# Original digest", 3)
+        db.init_schema()
+        db.init_schema()
+        assert db.get_digest("legacy").podcast_title is None
+        db.save_podcast("legacy", tmp_path / "audio.mp3", 3, title="Useful agent evidence")
+        assert db.get_digest("legacy").podcast_title == "Useful agent evidence"
+        assert db.get_digest("legacy").markdown == "# Original digest"
+    finally:
+        db.close()

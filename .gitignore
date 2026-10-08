@@ -8,9 +8,26 @@ wheels/
 
 # Virtual environments
 .venv
+.venv-podcastfy
 
 # Environment
 .env
+.env.*
+!.env.example
+
+# Local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+credentials.json
+application_default_credentials.json
+
+# Local agent configuration and generated experiments
+.claude/
+.scratch/
 
 # Data
 *.db

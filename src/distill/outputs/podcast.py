@@ -1,13 +1,20 @@
-"""Podcast generation with pluggable providers: notebooklm (default) or edge-tts."""
+"""Podcast generation with Gemini Developer API speech as the default provider."""
 
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
+from rich.console import Console
+
 from distill.db import Database
 from distill.models import Article, ScoreBreakdown
-from distill.outputs.digest import get_week_range
-from distill.outputs.podcast_providers import PodcastSource, get_podcast_provider
+from distill.outputs.digest import get_week_range, save_article_digest
+from distill.outputs.podcast_providers import (
+    DEFAULT_PODCAST_PROVIDER,
+    PodcastSource,
+    get_podcast_provider,
+)
+from distill.outputs.podcast_titles import episode_title
 from distill.processing.extractor import extract_articles
 from distill.processing.recommendation import ReadingSlateRequest, select_reading_slate
 
@@ -42,8 +49,15 @@ def _collect_weekly_articles(
 def _collect_ondemand_articles(
     db: Database, article_ids: list[int]
 ) -> tuple[str, list[tuple[Article, ScoreBreakdown]]]:
-    label = datetime.now().strftime("%Y-%m-%d-%H%M")
-    articles = db.get_articles_by_ids(article_ids)
+    label = datetime.now().strftime("%Y-%m-%d-%H%M%S-%f")
+    requested_ids = list(dict.fromkeys(article_ids))
+    by_id = {
+        article.id: (article, score) for article, score in db.get_articles_by_ids(requested_ids)
+    }
+    missing = [str(article_id) for article_id in requested_ids if article_id not in by_id]
+    if missing:
+        raise ValueError(f"Articles not found: {', '.join(missing)}")
+    articles = [by_id[article_id] for article_id in requested_ids]
     return label, articles
 
 
@@ -75,17 +89,20 @@ async def generate_podcast(
     article_ids: list[int] | None = None,
     on_status: "Callable[[str], None] | None" = None,
 ) -> Path | None:
-    def _status(msg: str):
-        print(msg)
+    console = Console()
+    db.init_schema()
+
+    def _status(msg: str) -> None:
+        console.print(msg)
         if on_status:
             on_status(msg)
 
     podcast_config = config.get("podcast", {})
     top_n = podcast_config.get("top_n", 20)
-    provider_name = podcast_config.get("provider", "notebooklm")
+    provider_name = podcast_config.get("provider", DEFAULT_PODCAST_PROVIDER)
 
     _status("Collecting articles...")
-    if article_ids:
+    if article_ids is not None:
         label, articles = _collect_ondemand_articles(db, article_ids)
     else:
         label, articles = _collect_weekly_articles(db, config, top_n)
@@ -104,15 +121,31 @@ async def generate_podcast(
 
     provider = get_podcast_provider(provider_name, podcast_config)
     audio_path = await provider.generate(
-        PodcastSource(label, articles, article_texts, on_demand=bool(article_ids)),
+        PodcastSource(label, articles, article_texts, on_demand=article_ids is not None),
         output_dir,
         _status,
     )
 
-    # Link to digest
-    if not article_ids:
-        db.save_podcast(label, audio_path, len(articles))
-
     size_mb = audio_path.stat().st_size / 1024 / 1024
-    print(f"Podcast saved: {audio_path} ({size_mb:.1f} MB)")
+    extension = "txt" if provider_name == "podcastfy-edge" else "md"
+    title = episode_title(
+        output_dir / f"podcast-script-{label}.{extension}",
+        [article.title for article, _ in articles],
+    )
+    db.save_podcast(
+        label, audio_path, len(articles), articles=[a for a, _ in articles], title=title
+    )
+    digest = db.get_digest(label)
+    if not digest.markdown or not digest.markdown.strip():
+        digest_articles = [
+            (
+                article.model_copy(
+                    update={"content_text": article_texts.get(article.id) or article.content_text}
+                ),
+                score,
+            )
+            for article, score in articles
+        ]
+        save_article_digest(db, output_dir, label, digest_articles)
+    console.print(f"Podcast saved: {audio_path} ({size_mb:.1f} MB)")
     return audio_path

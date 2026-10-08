@@ -19,7 +19,8 @@
 
 {% if results is not none %}
     {% if results %}
-    <ul class="article-list">
+    <p class="results-caption">{{ results|length }} results for “{{ query }}”</p>
+    <ul class="article-list search-results">
         {% for r in results %}
         <li class="article-row">
             <span class="article-rank">{{ loop.index }}</span>

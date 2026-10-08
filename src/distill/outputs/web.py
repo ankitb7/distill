@@ -1,13 +1,24 @@
 import asyncio
+import re
+from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from rich.console import Console
 
 from distill.config import get_db_path
 from distill.db import Database
+from distill.models import Digest
+from distill.outputs.markdown import render_digest_markdown
+from distill.outputs.podcast_providers import (
+    DEFAULT_PODCAST_PROVIDER,
+    PODCAST_PROVIDERS,
+    configure_podcast,
+)
+from distill.outputs.podcastfy import SCRIPT_PROVIDERS, PodcastfyProvider, PodcastfySettings
 from distill.processing.recommendation import (
     ReadingSlateRequest,
     meets_quality_gate,
@@ -20,12 +31,19 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 
 _generating: bool = False
 _last_error: str | None = None
+_active_provider: str | None = None
 
 
-def _build_slack_channel_map(config: dict) -> dict[str, str]:
-    """Build channel_name -> channel_id mapping from config."""
-    channels = config.get("sources", {}).get("slack", {}).get("channels", [])
-    return {ch["name"]: ch["id"] for ch in channels if "name" in ch and "id" in ch}
+def _archive_entry(digest: Digest) -> dict:
+    weekly = re.fullmatch(r"(\d{4})-W(\d{2})", digest.week_label)
+    kind = "Weekly" if weekly else "Comparison" if "comparison-" in digest.week_label else "Custom"
+    fallback = f"Week {int(weekly[2])}, {weekly[1]}" if weekly else "Custom briefing"
+    return {
+        "digest": digest,
+        "title": digest.podcast_title or fallback,
+        "kind": kind,
+        "date_label": datetime.fromisoformat(digest.created_at).strftime("%d %b %Y").lstrip("0"),
+    }
 
 
 def create_app(config: dict) -> FastAPI:
@@ -34,7 +52,11 @@ def create_app(config: dict) -> FastAPI:
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["plain_text_excerpt"] = plain_text_excerpt
     db_path = get_db_path(config)
-    slack_channel_map = _build_slack_channel_map(config)
+    db = Database(db_path)
+    try:
+        db.init_schema()
+    finally:
+        db.close()
 
     def get_db() -> Database:
         return Database(db_path)
@@ -50,6 +72,8 @@ def create_app(config: dict) -> FastAPI:
             config,
             ReadingSlateRequest(limit=limit, week_start=week_start, week_end=week_end),
         )
+        if not articles:
+            articles = select_reading_slate(db, config, ReadingSlateRequest(limit=limit))
 
         if source:
             articles = [(a, s) for a, s in articles if a.source.value == source]
@@ -71,7 +95,6 @@ def create_app(config: dict) -> FastAPI:
                 "source_filter": source,
                 "limit": limit,
                 "quality_count": quality_count,
-                "slack_channel_map": slack_channel_map,
             },
         )
 
@@ -96,7 +119,18 @@ def create_app(config: dict) -> FastAPI:
         db = get_db()
         digests = db.list_digests()
         db.close()
-        return templates.TemplateResponse(request, "digest.html", {"digests": digests})
+        entries = [_archive_entry(digest) for digest in digests]
+        groups = [
+            {"name": name, "entries": [entry for entry in entries if entry["kind"] == kind]}
+            for kind, name in [
+                ("Weekly", "Weekly"),
+                ("Comparison", "Comparisons"),
+                ("Custom", "Custom runs"),
+            ]
+        ]
+        return templates.TemplateResponse(
+            request, "digest.html", {"digests": digests, "digest_groups": groups}
+        )
 
     @app.get("/digest/{week_label}", response_class=HTMLResponse)
     async def digest_detail(request: Request, week_label: str):
@@ -105,7 +139,11 @@ def create_app(config: dict) -> FastAPI:
         db.close()
         if not digest:
             return HTMLResponse("Digest not found", status_code=404)
-        return templates.TemplateResponse(request, "digest_detail.html", {"digest": digest})
+        return templates.TemplateResponse(
+            request,
+            "digest_detail.html",
+            {"digest": digest, "digest_html": render_digest_markdown(digest.markdown or "")},
+        )
 
     @app.get("/stats", response_class=HTMLResponse)
     async def stats_page(request: Request):
@@ -118,42 +156,95 @@ def create_app(config: dict) -> FastAPI:
     async def podcasts_page(request: Request):
         global _last_error
         db = get_db()
-        podcasts = db.list_digests()
-        db.close()
-        provider = config.get("podcast", {}).get("provider", "notebooklm")
-        ctx = {"podcasts": podcasts, "generating": _generating, "provider": provider}
+        try:
+            episodes = [
+                {
+                    "podcast": podcast,
+                    "articles": db.get_podcast_articles(podcast.week_label),
+                    "kind": _archive_entry(podcast)["kind"],
+                    "date_label": datetime.fromisoformat(podcast.created_at)
+                    .strftime("%d %b %Y")
+                    .lstrip("0"),
+                }
+                for podcast in db.list_podcasts()
+            ]
+        finally:
+            db.close()
+        provider = config.get("podcast", {}).get("provider", DEFAULT_PODCAST_PROVIDER)
+        ctx = {
+            "episodes": episodes,
+            "generating": _generating,
+            "provider": provider,
+            "providers": PODCAST_PROVIDERS,
+            "script_providers": SCRIPT_PROVIDERS,
+            "script_provider": config.get("podcast", {})
+            .get("podcastfy", {})
+            .get("script_provider", "anthropic"),
+        }
         if _generating:
-            time_est = "10-15 minutes" if provider == "notebooklm" else "3-5 minutes"
-            ctx["message"] = f"Podcast generation in progress ({provider}). Refresh in {time_est}."
+            ctx["message"] = (
+                f"Podcast generation in progress ({_active_provider or provider}). "
+                "Refresh in a few minutes."
+            )
         elif _last_error:
             ctx["error"] = _last_error
             _last_error = None
         return templates.TemplateResponse(request, "podcasts.html", ctx)
 
+    @app.get("/podcast-articles")
+    async def podcast_articles_page() -> RedirectResponse:
+        return RedirectResponse("/podcasts", status_code=308)
+
     @app.post("/podcasts/generate")
-    async def generate_podcast_now(article_ids: str = Form("")):
-        global _generating
+    async def generate_podcast_now(
+        article_ids: str = Form(""), provider: str = Form(""), script_provider: str = Form("")
+    ):
+        global _generating, _active_provider, _last_error
         if not _generating:
             from distill.config import get_output_dir
             from distill.outputs.podcast import generate_podcast
 
+            try:
+                selected_config = configure_podcast(config, provider, script_provider)
+                selected_provider = selected_config["podcast"]["provider"]
+                if selected_provider == "podcastfy-edge":
+                    PodcastfyProvider(
+                        PodcastfySettings(**selected_config["podcast"].get("podcastfy", {}))
+                    ).validate_setup()
+            except ValueError as exc:
+                _last_error = str(exc)
+                return RedirectResponse("/podcasts", status_code=303)
+
             ids = None
             if article_ids.strip():
-                ids = [int(x.strip()) for x in article_ids.split(",") if x.strip()]
+                try:
+                    ids = [int(x.strip()) for x in article_ids.split(",")]
+                except ValueError as exc:
+                    raise HTTPException(422, "Enter article IDs separated by commas.") from exc
+                db = get_db()
+                try:
+                    found = {article.id for article, _ in db.get_articles_by_ids(ids)}
+                finally:
+                    db.close()
+                if set(ids) != found:
+                    raise HTTPException(422, "Some articles could not be found. Check the IDs.")
 
             _generating = True
+            _active_provider = selected_provider
+            _last_error = None
 
             async def _run():
-                global _generating, _last_error
+                global _generating, _last_error, _active_provider
                 db = get_db()
                 try:
                     output_dir = get_output_dir(config)
-                    await generate_podcast(db, config, output_dir, article_ids=ids)
+                    await generate_podcast(db, selected_config, output_dir, article_ids=ids)
                 except Exception as e:
                     _last_error = str(e)
-                    print(f"Podcast generation failed: {e}")
+                    Console().print(f"Podcast generation failed: {e}")
                 finally:
                     _generating = False
+                    _active_provider = None
                     db.close()
 
             asyncio.create_task(_run())
@@ -172,7 +263,11 @@ def create_app(config: dict) -> FastAPI:
         file_path = Path(digest.podcast_path)
         if not file_path.exists():
             return HTMLResponse("Podcast file not found", status_code=404)
-        media = "audio/mpeg" if file_path.suffix == ".mp3" else "text/markdown"
+        media = {
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".m4a": "audio/mp4",
+        }.get(file_path.suffix.lower(), "application/octet-stream")
         return FileResponse(file_path, media_type=media)
 
     @app.get("/add", response_class=HTMLResponse)
@@ -193,7 +288,10 @@ def create_app(config: dict) -> FastAPI:
             {"url": result.url, "status": result.status.value, "title": result.title}
             for result in intake_results
         ]
-        return templates.TemplateResponse(request, "add.html", {"results": results})
+        template = (
+            "_add_results.html" if request.headers.get("HX-Request") == "true" else "add.html"
+        )
+        return templates.TemplateResponse(request, template, {"results": results})
 
     @app.get("/search", response_class=HTMLResponse)
     async def search_page(request: Request):

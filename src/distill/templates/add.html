@@ -7,7 +7,7 @@
     <p>Drop one URL per line. Content will be fetched and extracted automatically.</p>
 </div>
 
-<form class="panel" hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
+<form class="panel" method="post" action="/add" hx-post="/add" hx-target="#results" hx-swap="innerHTML" hx-indicator="#spinner">
     <label for="article-urls">Article URLs</label>
     <textarea id="article-urls" name="urls" rows="5" placeholder="https://example.com/great-ai-article
 https://another.com/llm-deep-dive
@@ -19,39 +19,6 @@ https://blog.example.com/practical-rag-guide" style="font-family: 'JetBrains Mon
 </form>
 
 <div id="results" style="margin-top: 1.5rem;" aria-live="polite">
-    {% if results %}
-    <div class="table-wrap">
-    <table>
-        <thead>
-            <tr>
-                <th>URL</th>
-                <th>Status</th>
-                <th>Title</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for r in results %}
-            <tr>
-                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <a href="{{ r.url }}" target="_blank" rel="noopener">{{ r.url }}</a>
-                </td>
-                <td>
-                    {% if r.status == "added" %}
-                    <span class="status-green">Added</span>
-                    {% elif r.status == "exists" %}
-                    <span class="status-amber">Already exists</span>
-                    {% elif r.status == "extracted" %}
-                    <span class="status-green">Added + extracted</span>
-                    {% else %}
-                    <span class="status-red">{{ r.status }}</span>
-                    {% endif %}
-                </td>
-                <td>{{ r.title or '—' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    </div>
-    {% endif %}
+    {% include "_add_results.html" %}
 </div>
 {% endblock %}

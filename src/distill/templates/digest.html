@@ -2,38 +2,32 @@
 {% block title %}Digests — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <span class="eyebrow">Your archive</span>
     <h1>Weekly digests</h1>
     <p>Weekly markdown summaries of top articles.</p>
 </div>
 
-{% if digests %}
-<div class="table-wrap">
-<table>
-    <thead>
-        <tr>
-            <th>Week</th>
-            <th>Articles</th>
-            <th>Created</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for d in digests %}
-        <tr>
-            <td><strong>{{ d.week_label }}</strong></td>
-            <td class="mono">{{ d.article_count }}</td>
-            <td>{{ d.created_at[:10] if d.created_at else '—' }}</td>
-            <td><a href="/digest/{{ d.week_label }}">Read digest</a></td>
-        </tr>
+{% for group in digest_groups if group.entries %}
+<section class="archive-group" aria-labelledby="group-{{ loop.index }}">
+    <h2 id="group-{{ loop.index }}" class="archive-heading">{{ group.name }} <span>({{ group.entries|length }})</span></h2>
+    <ul class="archive-list">
+        {% for entry in group.entries %}
+        {% set d = entry.digest %}
+        <li class="archive-row">
+            <div class="archive-name">
+                <h3>{{ entry.title }}</h3>
+                <span class="archive-id">{{ d.week_label }}</span>
+            </div>
+            <span class="archive-count">{{ d.article_count }} articles</span>
+            <time datetime="{{ d.created_at[:10] }}">{{ entry.date_label }}</time>
+            <a class="row-button" href="/digest/{{ d.week_label }}">Read digest<span class="visually-hidden">: {{ entry.title }}</span></a>
+        </li>
         {% endfor %}
-    </tbody>
-</table>
-</div>
+    </ul>
+</section>
 {% else %}
 <div class="empty-state">
     <p>No digests generated yet.</p>
     <p>Run <code>distill digest</code> to create one.</p>
 </div>
-{% endif %}
+{% endfor %}
 {% endblock %}

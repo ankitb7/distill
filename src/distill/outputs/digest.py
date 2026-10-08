@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from distill.db import Database
-from distill.models import ScoreBreakdown
+from distill.models import Article, ScoreBreakdown
 from distill.processing.recommendation import ReadingSlateRequest, select_reading_slate
 
 
@@ -37,6 +37,17 @@ def generate_digest(
 
     if not articles:
         articles = select_reading_slate(db, config, ReadingSlateRequest(limit=top_n))
+
+    return save_article_digest(db, output_dir, label, articles)
+
+
+def save_article_digest(
+    db: Database,
+    output_dir: Path,
+    label: str,
+    articles: list[tuple[Article, ScoreBreakdown]],
+) -> Path:
+    """Save a written digest of an exact selection without selecting current articles again."""
 
     lines = [
         f"# Distill Digest — {label}",

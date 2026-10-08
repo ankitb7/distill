@@ -2,46 +2,46 @@
 {% block title %}Stats — Distill{% endblock %}
 {% block content %}
 <div class="page-header">
-    <span class="eyebrow">Collection health</span>
     <h1>Library stats</h1>
-    <p>Database health and collection metrics.</p>
+    <p>Collection health and where your articles come from.</p>
 </div>
 
+{% set metrics = [
+    ('Total', 'total_articles', 'collected'),
+    ('Unique', 'unique_articles', 'after repeats merged'),
+    ('With Content', 'with_content', 'full text extracted'),
+    ('Scored', 'scored', 'ranked for the briefing'),
+    ('Duplicates', 'duplicates', 'same link seen again')
+] %}
 <div class="stat-grid">
-    <div class="stat-card">
-        <div class="label">Total</div>
-        <div class="value">{{ stats.total_articles }}</div>
+    {% for label, key, description in metrics %}
+    {% set value = stats[key] %}
+    {% set percent = (100 * value / stats.total_articles) if stats.total_articles else 0 %}
+    <div class="stat-card{% if key == 'duplicates' %} duplicates{% endif %}">
+        <div class="label">{{ label }}</div>
+        <div class="value">{{ '{:,}'.format(value) }}</div>
+        <div class="metric-bar" aria-hidden="true"><span style="width: {{ percent }}%;"></span></div>
+        <p class="metric-caption">{{ '%.1f'|format(percent) }}% · {{ description }}</p>
     </div>
-    <div class="stat-card">
-        <div class="label">Unique</div>
-        <div class="value">{{ stats.unique_articles }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">With Content</div>
-        <div class="value">{{ stats.with_content }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">Scored</div>
-        <div class="value">{{ stats.scored }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">Duplicates</div>
-        <div class="value">{{ stats.duplicates }}</div>
-    </div>
+    {% endfor %}
 </div>
 
 {% if stats.by_source %}
-<h3>By Source</h3>
+<h2 class="section-label">By Source</h2>
+<div class="source-stack" aria-hidden="true">
+    {% for source, count in stats.by_source.items() %}
+    <span data-source="{{ source }}" style="width: {{ 100 * count / stats.total_articles if stats.total_articles else 0 }}%;"></span>
+    {% endfor %}
+</div>
 <div class="table-wrap">
-<table>
-    <thead>
-        <tr><th>Source</th><th>Count</th></tr>
-    </thead>
+<table class="source-table">
+    <thead class="visually-hidden"><tr><th>Source</th><th>Count</th><th>Percentage</th></tr></thead>
     <tbody>
         {% for source, count in stats.by_source.items() %}
         <tr>
             <td><span class="source-badge" data-source="{{ source }}">{{ source }}</span></td>
-            <td class="mono">{{ count }}</td>
+            <td>{{ '{:,}'.format(count) }}</td>
+            <td>{{ '%.0f'|format(100 * count / stats.total_articles if stats.total_articles else 0) }}%</td>
         </tr>
         {% endfor %}
     </tbody>
