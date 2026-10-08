@@ -331,7 +331,7 @@ def test_podcasts_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):
     assert response.status_code == 200
     for i in range(2):
         section = response.text.split(f'id="episode-custom-{i}"')[1].split("</section>")[0]
-        assert f'href="https://example.com/article-{i}"' in section
+        assert f'href="https://example.com/article-{i}" target="_blank" rel="noopener"' in section
         assert f"Article &lt;{i}&gt;" in section
         assert f"article-{1 - i}" not in section
         assert f'src="/podcast-file/custom-{i}"' in section

@@ -98,7 +98,7 @@
             {% for article in episode.articles %}
             <li>
                 {% if article.url.startswith(('https://', 'http://')) %}
-                <a href="{{ article.url }}">{{ article.title }}</a>
+                <a href="{{ article.url }}" target="_blank" rel="noopener">{{ article.title }} <span class="visually-hidden">(opens in a new tab)</span></a>
                 {% else %}
                 {{ article.title }}
                 {% endif %}
