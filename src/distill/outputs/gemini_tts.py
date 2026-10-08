@@ -60,6 +60,20 @@ def chunk_dialogue(segments: list[tuple[str, str]], max_bytes: int = 3000) -> li
     return chunks
 
 
+def validated_pcm(audio: bytes, text: str) -> bytes:
+    """Validate a complete 24 kHz mono WAV before appending it to an episode."""
+    with wave.open(io.BytesIO(audio), "rb") as chunk:
+        if (chunk.getnchannels(), chunk.getsampwidth(), chunk.getframerate()) != (1, 2, 24000):
+            raise ValueError("Unexpected audio format")
+        duration = chunk.getnframes() / chunk.getframerate()
+        frames = chunk.readframes(chunk.getnframes())
+        if not frames or len(frames) != chunk.getnframes() * 2:
+            raise ValueError("Empty or incomplete audio")
+        if not len(text.split()) / 6 <= duration < 600:
+            raise ValueError("Audio may be truncated; unexpected duration")
+        return frames
+
+
 @dataclass(frozen=True)
 class GeminiTTSProvider:
     project: str = ""
@@ -157,20 +171,7 @@ class GeminiTTSProvider:
                             )
                         try:
                             audio = base64.b64decode(response.json()["audioContent"], validate=True)
-                            with wave.open(io.BytesIO(audio), "rb") as chunk:
-                                if (
-                                    chunk.getnchannels(),
-                                    chunk.getsampwidth(),
-                                    chunk.getframerate(),
-                                ) != (1, 2, 24000):
-                                    raise ValueError("Unexpected audio format")
-                                duration = chunk.getnframes() / chunk.getframerate()
-                                frames = chunk.readframes(chunk.getnframes())
-                                if not frames or len(frames) != chunk.getnframes() * 2:
-                                    raise ValueError("Empty or incomplete audio")
-                                if not len(text.split()) / 6 <= duration < 600:
-                                    raise ValueError("Audio may be truncated; unexpected duration")
-                            output.writeframes(frames)
+                            output.writeframes(validated_pcm(audio, text))
                         except (KeyError, ValueError, binascii.Error, wave.Error, EOFError) as exc:
                             raise RuntimeError(
                                 f"Invalid Google TTS audio in chunk {index}: {exc}"

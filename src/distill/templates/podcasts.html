@@ -88,6 +88,8 @@
         (Claude script + Microsoft edge-tts — free, ~3-5 min generation time)
         {% elif provider == 'gemini-tts' %}
         (Claude script + Google Gemini voices through the official Cloud Text-to-Speech API)
+        {% elif provider == 'gemini-api-tts' %}
+        (Claude script + Gemini Flash voices through the official Gemini API; free-tier audio quota applies)
         {% endif %}
         </p>
         <p style="margin-bottom: 0.25rem;">CLI usage:</p>

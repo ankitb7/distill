@@ -30,6 +30,14 @@ class PodcastProvider(Protocol):
 def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
     if name == "notebooklm":
         return NotebookLMProvider()
+    if name == "gemini-api-tts":
+        from distill.outputs.gemini_api_tts import GeminiAPITTSProvider
+
+        return GeminiAPITTSProvider(
+            model=config.get("gemini_api_model", "gemini-3.8-flash-tts"),
+            voice_a=config.get("gemini_voice_a", "Charon"),
+            voice_b=config.get("gemini_voice_b", "Kore"),
+        )
     if name == "gemini-tts":
         from distill.outputs.gemini_tts import GeminiTTSProvider
 
@@ -44,7 +52,9 @@ def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
             voice_a=config.get("voice_a", "en-US-GuyNeural"),
             voice_b=config.get("voice_b", "en-US-AriaNeural"),
         )
-    raise ValueError(f"Unknown podcast provider: {name!r}. Use: notebooklm, gemini-tts, edge-tts")
+    raise ValueError(
+        f"Unknown podcast provider: {name!r}. Use: notebooklm, gemini-api-tts, gemini-tts, edge-tts"
+    )
 
 
 class NotebookLMProvider:
