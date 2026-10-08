@@ -403,10 +403,10 @@ dialog form { margin: 16px 0 0; text-align: right; }
 .episode-generator { margin-bottom: 24px; }
 .generator-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
 .generator-heading .section-label { margin: 0; }
-.episode-modes[role="group"] { display: flex; width: auto; margin: 0; gap: 4px; box-shadow: none; }
-.episode-modes[role="group"] button { flex: 0 0 auto; width: auto; border-radius: 4px; padding: 2px 6px; border: 0; font-size: 11px; line-height: 16px; font-weight: 400; background: transparent; color: var(--fg-muted); }
+.episode-modes[role="group"] { display: inline-flex; width: auto; margin: 0; padding: 3px; gap: 2px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--panel-soft); box-shadow: none; }
+.episode-modes[role="group"] button { flex: 0 0 auto; width: auto; min-height: 32px; border-radius: 4px; padding: 6px 12px; border: 0; font-size: 12px; line-height: 20px; font-weight: 500; background: transparent; color: var(--fg-muted); }
 .episode-modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
-.episode-modes button:hover { background: var(--row-selected); color: var(--fg); }
+.episode-modes button[aria-pressed="false"]:hover { background: var(--row-selected); color: var(--fg); }
 .episode-generator form { margin: 0; }
 .episode-generator [type="submit"] { display: inline-block; width: auto; }
 .episode-generator form + form:not([hidden]) { margin-top: 24px; }

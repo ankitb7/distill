@@ -54,6 +54,9 @@ async def test_generate_podcast_uses_provider_seam(tmp_db, tmp_path):
     episode = tmp_db.list_podcasts()[0]
     assert episode.week_label == source.label
     assert episode.podcast_path == str(audio_path)
+    assert episode.markdown and "Podcast Article" in episode.markdown
+    assert "https://example.com/podcast" in episode.markdown
+    assert (tmp_path / f"digest-{source.label}.md").read_text() == episode.markdown
     assert [article.url for article in tmp_db.get_podcast_articles(source.label)] == [
         "https://example.com/podcast"
     ]
@@ -88,6 +91,34 @@ async def test_custom_podcasts_preserve_selection_and_have_distinct_labels(tmp_d
             "Article 2",
             "Article 0",
         ]
+        assert episode.markdown.index("Article 2") < episode.markdown.index("Article 0")
+        assert "Article 1" not in episode.markdown
+
+
+@pytest.mark.asyncio
+async def test_podcast_does_not_replace_existing_written_digest(tmp_db, tmp_path):
+    aid = tmp_db.insert_article(
+        CollectedArticle(
+            title="Article",
+            url="https://example.com/preserve",
+            source=Source.RSS,
+            content_text="content " * 100,
+        )
+    )
+    articles = tmp_db.get_articles_by_ids([aid])
+    tmp_db.insert_digest("2026-W41", "# Existing editorial digest", 1)
+    audio = tmp_path / "audio.mp3"
+    audio.write_bytes(b"audio")
+    provider = AsyncMock()
+    provider.generate.return_value = audio
+    with (
+        patch("distill.outputs.podcast.get_podcast_provider", return_value=provider),
+        patch(
+            "distill.outputs.podcast._collect_weekly_articles", return_value=("2026-W41", articles)
+        ),
+    ):
+        await generate_podcast(tmp_db, {}, tmp_path)
+    assert tmp_db.get_digest("2026-W41").markdown == "# Existing editorial digest"
 
 
 @pytest.mark.asyncio

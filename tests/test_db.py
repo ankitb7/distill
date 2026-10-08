@@ -220,6 +220,15 @@ def test_digest_and_podcast_persistence(tmp_db, tmp_path):
     assert updated.article_count == 4
 
 
+def test_digest_list_excludes_missing_or_blank_written_content(tmp_db, tmp_path):
+    tmp_db.save_podcast("audio-only", tmp_path / "audio.mp3", 1)
+    tmp_db.insert_digest("empty", "", 0)
+    tmp_db.insert_digest("blank", "   ", 0)
+    tmp_db.insert_digest("written", "# Digest", 1)
+    assert [digest.week_label for digest in tmp_db.list_digests()] == ["written"]
+    assert [podcast.week_label for podcast in tmp_db.list_podcasts()] == ["audio-only"]
+
+
 def test_podcast_links_survive_cleanup_and_digest_regeneration(tmp_db, tmp_path):
     ids = [
         tmp_db.insert_article(

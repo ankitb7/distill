@@ -491,7 +491,10 @@ class Database:
         return self.get_digest(week_label).id
 
     def list_digests(self) -> list[Digest]:
-        rows = self.conn.execute("SELECT * FROM digests ORDER BY created_at DESC").fetchall()
+        rows = self.conn.execute(
+            "SELECT * FROM digests WHERE markdown IS NOT NULL AND TRIM(markdown) != '' "
+            "ORDER BY created_at DESC"
+        ).fetchall()
         return [self._row_to_digest(row) for row in rows]
 
     def get_digest(self, week_label: str) -> Digest | None:

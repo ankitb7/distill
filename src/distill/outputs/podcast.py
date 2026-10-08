@@ -8,7 +8,7 @@ from rich.console import Console
 
 from distill.db import Database
 from distill.models import Article, ScoreBreakdown
-from distill.outputs.digest import get_week_range
+from distill.outputs.digest import get_week_range, save_article_digest
 from distill.outputs.podcast_providers import (
     DEFAULT_PODCAST_PROVIDER,
     PodcastSource,
@@ -135,5 +135,17 @@ async def generate_podcast(
     db.save_podcast(
         label, audio_path, len(articles), articles=[a for a, _ in articles], title=title
     )
+    digest = db.get_digest(label)
+    if not digest.markdown or not digest.markdown.strip():
+        digest_articles = [
+            (
+                article.model_copy(
+                    update={"content_text": article_texts.get(article.id) or article.content_text}
+                ),
+                score,
+            )
+            for article, score in articles
+        ]
+        save_article_digest(db, output_dir, label, digest_articles)
     console.print(f"Podcast saved: {audio_path} ({size_mb:.1f} MB)")
     return audio_path

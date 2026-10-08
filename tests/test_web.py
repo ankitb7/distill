@@ -219,6 +219,8 @@ def test_digest_groups_keep_original_links_and_escape_generated_titles(tmp_db, t
         "2026-comparison-sample", tmp_path / "sample.mp3", 2, title="Agents <prove> value"
     )
     tmp_db.save_podcast("custom-sample", tmp_path / "custom.mp3", 1, title="Custom topic")
+    tmp_db.insert_digest("2026-comparison-sample", "# Comparison notes", 2)
+    tmp_db.insert_digest("custom-sample", "# Custom notes", 1)
     response = TestClient(create_app(_make_config(tmp_db.db_path))).get("/digests")
     assert response.status_code == 200
     assert "Week 41, 2026" in response.text
@@ -244,6 +246,23 @@ def test_digest_detail_uses_application_shell():
     assert 'class="brand-mark"' in resp.text
     assert "2026-W36 Digest — Distill" in resp.text
     assert "# Useful evidence" in resp.text
+    assert 'href="/digests"' in resp.text
+    assert "Back to digests" in resp.text
+
+
+def test_audio_only_records_are_not_advertised_as_written_digests(tmp_db, tmp_path):
+    tmp_db.save_podcast("audio-only", tmp_path / "audio.mp3", 3)
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    archive = client.get("/digests")
+    assert archive.status_code == 200
+    assert 'href="/digest/audio-only"' not in archive.text
+    assert "No digests generated yet." in archive.text
+    detail = client.get("/digest/audio-only")
+    assert detail.status_code == 200
+    assert "A written digest hasn’t been generated" in detail.text
+    assert "Back to digests" in detail.text
+    assert 'href="/podcasts#episode-audio-only"' in detail.text
+    assert 'id="episode-audio-only"' in client.get("/podcasts").text
 
 
 def test_article_not_found():
