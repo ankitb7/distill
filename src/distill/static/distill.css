@@ -409,7 +409,7 @@ dialog form { margin: 16px 0 0; text-align: right; }
 .episode-modes button[aria-pressed="false"]:hover { background: var(--row-selected); color: var(--fg); }
 .episode-generator form { margin: 0; }
 .episode-generator [type="submit"] { display: inline-block; width: auto; }
-.episode-generator form + form:not([hidden]) { margin-top: 24px; }
+.episode-generator form:not([hidden]) + form:not([hidden]) { margin-top: 24px; }
 .episode-generator form > p:first-of-type { font-size: 13px; color: var(--fg-muted); }
 .provider-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
 .provider-grid select { margin-bottom: 6px; }
