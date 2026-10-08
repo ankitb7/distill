@@ -61,15 +61,19 @@
 
 {% for episode in episodes %}
 {% set p = episode.podcast %}
+{% set episode_title = p.podcast_title or 'AI engineering briefing' %}
 <section class="action-card" id="episode-{{ p.week_label }}" aria-labelledby="heading-{{ p.week_label }}">
-    <h2 id="heading-{{ p.week_label }}">Episode {{ p.week_label }}</h2>
-    <p>{{ p.created_at[:10] }} · {{ p.article_count }} {{ 'article' if p.article_count == 1 else 'articles' }}</p>
+    <div class="podcast-heading">
+        <h2 id="heading-{{ p.week_label }}">{{ episode_title }}</h2>
+        <time class="podcast-date" datetime="{{ p.created_at[:10] }}">{{ episode.date_label }}</time>
+    </div>
+    <p>{{ p.article_count }} {{ 'article' if p.article_count == 1 else 'articles' }}</p>
     {% if p.podcast_path.endswith(('.mp3', '.wav', '.m4a')) %}
-    <audio controls preload="none" aria-label="Listen to episode {{ p.week_label }}">
+    <audio controls preload="none" aria-label="Listen to {{ episode_title }}">
         <source src="/podcast-file/{{ p.week_label }}">
     </audio>
     {% else %}
-    <p><a href="/podcast-file/{{ p.week_label }}">Download episode {{ p.week_label }}</a></p>
+    <p><a href="/podcast-file/{{ p.week_label }}">Download {{ episode_title }}</a></p>
     {% endif %}
     {% if episode.articles %}
     <details>

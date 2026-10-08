@@ -299,6 +299,10 @@ Choose a provider for each episode in the Podcasts page or with `distill podcast
 Set the default under `podcast.provider` in `config.yaml`. Podcast failures are surfaced in
 the dashboard, and authentication failures explain how to reauthenticate.
 
+Each new episode gets a descriptive title from the AI provider writing its script. Titles are
+stored separately from episode IDs and are not spoken in the audio. The Podcasts page shows
+the title beside a date label, with the source articles available below the player.
+
 Both Gemini providers use documented Google APIs. No browser login or session cookies are required.
 
 `gemini-api-tts` uses `gemini-3.8-flash-tts` through the Interactions API, with explicit speaker

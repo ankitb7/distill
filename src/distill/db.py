@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS digests (
     week_label TEXT NOT NULL UNIQUE,
     markdown TEXT,
     podcast_path TEXT,
+    podcast_title TEXT,
     article_count INTEGER,
     created_at TEXT NOT NULL
 );
@@ -129,7 +130,15 @@ class Database:
     def init_schema(self):
         self.conn.executescript(SCHEMA)
         self._ensure_score_columns()
+        self._ensure_podcast_title_column()
         self.conn.commit()
+
+    def _ensure_podcast_title_column(self) -> None:
+        existing = {
+            row["name"] for row in self.conn.execute("PRAGMA table_info(digests)").fetchall()
+        }
+        if "podcast_title" not in existing:
+            self.conn.execute("ALTER TABLE digests ADD COLUMN podcast_title TEXT")
 
     def _ensure_score_columns(self) -> None:
         """Add Article assessment columns to databases created by older versions."""
@@ -497,9 +506,10 @@ class Database:
         podcast_path: Path,
         article_count: int,
         articles: list[Article] | None = None,
+        title: str | None = None,
     ) -> None:
         with self.conn:
-            self._save_podcast(week_label, podcast_path, article_count)
+            self._save_podcast(week_label, podcast_path, article_count, title)
             self.conn.execute("DELETE FROM podcast_articles WHERE week_label = ?", (week_label,))
             self.conn.executemany(
                 "INSERT INTO podcast_articles (week_label, position, title, url) "
@@ -510,17 +520,29 @@ class Database:
                 ],
             )
 
-    def _save_podcast(self, week_label: str, podcast_path: Path, article_count: int) -> None:
+    def _save_podcast(
+        self, week_label: str, podcast_path: Path, article_count: int, title: str | None
+    ) -> None:
         self.conn.execute(
             """INSERT INTO digests
-                   (week_label, podcast_path, article_count, created_at)
-               VALUES (?, ?, ?, ?)
+                   (week_label, podcast_path, article_count, created_at, podcast_title)
+               VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(week_label) DO UPDATE SET
                    podcast_path = excluded.podcast_path,
                    article_count = excluded.article_count,
+                   podcast_title = COALESCE(excluded.podcast_title, digests.podcast_title),
                    created_at = excluded.created_at""",
-            (week_label, str(podcast_path), article_count, datetime.now().isoformat()),
+            (week_label, str(podcast_path), article_count, datetime.now().isoformat(), title),
         )
+
+    def set_podcast_title(self, week_label: str, title: str) -> None:
+        """Rename a recording without changing dates, source links, or its audio path."""
+        with self.conn:
+            self.conn.execute(
+                "UPDATE digests SET podcast_title = ? "
+                "WHERE week_label = ? AND podcast_path IS NOT NULL",
+                (title, week_label),
+            )
 
     def list_podcasts(self) -> list[Digest]:
         rows = self.conn.execute(

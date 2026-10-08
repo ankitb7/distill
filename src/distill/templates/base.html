@@ -477,6 +477,25 @@
         .action-card h2 { font-size: 1rem; margin-bottom: 0.35rem; }
         .action-card p, .form-help { color: var(--text-muted); font-size: 0.82rem; }
         .action-card button { width: 100%; }
+        .podcast-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.35rem;
+        }
+        .podcast-heading h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+        .podcast-date {
+            flex-shrink: 0;
+            white-space: nowrap;
+            padding: 0.25rem 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface-hover);
+            color: var(--text);
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
         .article-content {
             max-width: 76ch;
             margin-top: 1.5rem;

@@ -161,7 +161,10 @@ Guidelines:
   concrete question, then orient the listener. Connect topics through ideas and callbacks.
   End with a useful conclusion and mention the original article links in Distill.
 
-Output only spoken dialogue. Keep delivery directions out of the transcript.
+Start with one metadata line: TITLE: <a specific, engaging episode title of 5-10 words>.
+The title must describe the central idea, use sentence case, and be at most 90 characters.
+Do not include a date, episode number, provider name, hype, or clickbait in the title.
+After that line, output only spoken dialogue. Keep delivery directions out of the transcript.
 Format each turn as:
 [Alex] dialogue here
 [Sarah] dialogue here

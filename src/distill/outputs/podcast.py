@@ -14,6 +14,7 @@ from distill.outputs.podcast_providers import (
     PodcastSource,
     get_podcast_provider,
 )
+from distill.outputs.podcast_titles import episode_title
 from distill.processing.extractor import extract_articles
 from distill.processing.recommendation import ReadingSlateRequest, select_reading_slate
 
@@ -89,6 +90,7 @@ async def generate_podcast(
     on_status: "Callable[[str], None] | None" = None,
 ) -> Path | None:
     console = Console()
+    db.init_schema()
 
     def _status(msg: str) -> None:
         console.print(msg)
@@ -125,6 +127,13 @@ async def generate_podcast(
     )
 
     size_mb = audio_path.stat().st_size / 1024 / 1024
-    db.save_podcast(label, audio_path, len(articles), articles=[a for a, _ in articles])
+    extension = "txt" if provider_name == "podcastfy-edge" else "md"
+    title = episode_title(
+        output_dir / f"podcast-script-{label}.{extension}",
+        [article.title for article, _ in articles],
+    )
+    db.save_podcast(
+        label, audio_path, len(articles), articles=[a for a, _ in articles], title=title
+    )
     console.print(f"Podcast saved: {audio_path} ({size_mb:.1f} MB)")
     return audio_path

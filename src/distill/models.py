@@ -82,6 +82,7 @@ class Digest(BaseModel):
     week_label: str
     markdown: str | None = None
     podcast_path: str | None = None
+    podcast_title: str | None = None
     article_count: int | None = None
     created_at: str
 

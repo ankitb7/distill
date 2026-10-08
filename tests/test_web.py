@@ -1,4 +1,5 @@
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -222,6 +223,26 @@ def test_podcasts_empty_state(tmp_db):
     assert 'for="weekly-provider"' in response.text
     assert 'for="custom-script-provider"' in response.text
     assert 'aria-describedby="custom-script-help"' in response.text
+
+
+def test_podcast_heading_uses_escaped_title_and_date_label(tmp_db, tmp_path):
+    tmp_db.save_podcast(
+        "technical-episode-id", tmp_path / "audio.mp3", 2, title="Agents <prove> their work"
+    )
+    tmp_db.save_podcast("legacy", tmp_path / "old.mp3", 1)
+    podcast = tmp_db.get_digest("technical-episode-id")
+    response = TestClient(create_app(_make_config(tmp_db.db_path))).get("/podcasts")
+    assert response.status_code == 200
+    section = response.text.split('id="episode-technical-episode-id"')[1].split("</section>")[0]
+    assert '<h2 id="heading-technical-episode-id">Agents &lt;prove&gt; their work</h2>' in section
+    date_label = datetime.fromisoformat(podcast.created_at).strftime("%d %b %Y").lstrip("0")
+    assert (
+        f'<time class="podcast-date" datetime="{podcast.created_at[:10]}">{date_label}</time>'
+        in section
+    )
+    assert 'aria-label="Listen to Agents &lt;prove&gt; their work"' in section
+    assert 'src="/podcast-file/technical-episode-id"' in section
+    assert '<h2 id="heading-legacy">AI engineering briefing</h2>' in response.text
 
 
 def test_podcasts_group_sources_and_keep_legacy_episodes(tmp_db, tmp_path):

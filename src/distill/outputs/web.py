@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -135,7 +136,13 @@ def create_app(config: dict) -> FastAPI:
         db = get_db()
         try:
             episodes = [
-                {"podcast": podcast, "articles": db.get_podcast_articles(podcast.week_label)}
+                {
+                    "podcast": podcast,
+                    "articles": db.get_podcast_articles(podcast.week_label),
+                    "date_label": datetime.fromisoformat(podcast.created_at)
+                    .strftime("%d %b %Y")
+                    .lstrip("0"),
+                }
                 for podcast in db.list_podcasts()
             ]
         finally:
