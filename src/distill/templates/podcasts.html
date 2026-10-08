@@ -46,9 +46,9 @@
 <section class="action-card" id="episode-{{ p.week_label }}" aria-labelledby="heading-{{ p.week_label }}">
     <h2 id="heading-{{ p.week_label }}">Episode {{ p.week_label }}</h2>
     <p>{{ p.created_at[:10] }} · {{ p.article_count }} {{ 'article' if p.article_count == 1 else 'articles' }}</p>
-    {% if p.podcast_path.endswith('.mp3') %}
+    {% if p.podcast_path.endswith(('.mp3', '.wav', '.m4a')) %}
     <audio controls preload="none" aria-label="Listen to episode {{ p.week_label }}">
-        <source src="/podcast-file/{{ p.week_label }}" type="audio/mpeg">
+        <source src="/podcast-file/{{ p.week_label }}">
     </audio>
     {% else %}
     <p><a href="/podcast-file/{{ p.week_label }}">Download episode {{ p.week_label }}</a></p>
@@ -86,6 +86,8 @@
         (Google NotebookLM — high quality, ~10-15 min generation time)
         {% elif provider|default('notebooklm') == 'edge-tts' %}
         (Claude script + Microsoft edge-tts — free, ~3-5 min generation time)
+        {% elif provider == 'gemini-tts' %}
+        (Claude script + Google Gemini voices through the official Cloud Text-to-Speech API)
         {% endif %}
         </p>
         <p style="margin-bottom: 0.25rem;">CLI usage:</p>

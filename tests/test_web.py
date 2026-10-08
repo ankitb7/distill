@@ -286,3 +286,18 @@ def test_old_podcast_articles_url_redirects_to_podcasts(tmp_db):
     response = client.get("/podcast-articles", follow_redirects=False)
     assert response.status_code == 308
     assert response.headers["location"] == "/podcasts"
+
+
+def test_gemini_wav_episode_has_inline_player_and_correct_media_type(tmp_db, tmp_path):
+    audio = tmp_path / "gemini.wav"
+    audio.write_bytes(b"RIFF-test-audio")
+    tmp_db.save_podcast("gemini-sample", audio, 0)
+    config = _make_config(tmp_db.db_path)
+    config["podcast"] = {"provider": "gemini-tts"}
+    client = TestClient(create_app(config))
+    response = client.get("/podcasts")
+    assert 'src="/podcast-file/gemini-sample"' in response.text
+    assert "official Cloud Text-to-Speech API" in response.text
+    audio_response = client.get("/podcast-file/gemini-sample")
+    assert audio_response.headers["content-type"] == "audio/wav"
+    assert audio_response.content == audio.read_bytes()

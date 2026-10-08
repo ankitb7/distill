@@ -197,7 +197,11 @@ web:
 podcast:
   day: sunday
   top_n: 20
-  provider: notebooklm  # notebooklm (default), edge-tts (free, no key), or openai (requires OPENAI_API_KEY)
+  provider: notebooklm  # notebooklm, gemini-tts (official Google API), or edge-tts
+  gemini_project: ai-pulse-pod-6591
+  gemini_model: gemini-2.5-pro-tts
+  gemini_voice_a: Charon
+  gemini_voice_b: Kore
   # Edge TTS voices (if provider: edge-tts)
   voice_a: en-US-GuyNeural
   voice_b: en-US-AriaNeural

@@ -198,7 +198,11 @@ def create_app(config: dict) -> FastAPI:
         file_path = Path(digest.podcast_path)
         if not file_path.exists():
             return HTMLResponse("Podcast file not found", status_code=404)
-        media = "audio/mpeg" if file_path.suffix == ".mp3" else "text/markdown"
+        media = {
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".m4a": "audio/mp4",
+        }.get(file_path.suffix.lower(), "application/octet-stream")
         return FileResponse(file_path, media_type=media)
 
     @app.get("/add", response_class=HTMLResponse)

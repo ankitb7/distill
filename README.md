@@ -138,6 +138,13 @@ Choose one provider under `podcast.provider` in `config.yaml`:
   `uv run notebooklm login`. Use `uv run notebooklm doctor` when authentication needs checking.
 - **edge-tts:** set `provider: edge-tts`. It uses your Anthropic key to write the script and does
   not require Google authentication.
+- **Gemini TTS (official Google API):** set `provider: gemini-tts`. Claude writes the script;
+  Gemini 2.5 Pro TTS produces two-host audio. Set `podcast.gemini_project` or
+  `GOOGLE_CLOUD_PROJECT`, enable billing and the Cloud Text-to-Speech API in that project, and run
+  `gcloud auth application-default login`. The authenticated identity needs
+  `aiplatform.endpoints.predict` (included in the Vertex AI User role) and permission to use the
+  project's services. On a server, use its service identity through Application Default Credentials.
+  NotebookLM's browser login is not used. See the [Google setup guide](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#before_you_begin).
 
 Generate an episode only after the reading pipeline has produced a slate:
 
@@ -282,6 +289,7 @@ controls, and reduced-motion preferences.
 | --- | --- | --- |
 | `notebooklm` | Uploads a source document, requests an Audio Overview, and downloads it | Interactive `notebooklm login` session |
 | `edge-tts` | Claude writes a two-host script; Microsoft voices synthesize the segments | `ANTHROPIC_API_KEY` |
+| `gemini-tts` | Claude writes a two-host script; Google's official Cloud TTS API voices the dialogue | `ANTHROPIC_API_KEY`, Google Cloud project with billing and Application Default Credentials |
 
 Select the provider under `podcast.provider` in `config.yaml`. Podcast failures are surfaced in
 the dashboard, and authentication failures explain how to reauthenticate.
@@ -289,7 +297,19 @@ the dashboard, and authentication failures explain how to reauthenticate.
 > [!WARNING]
 > `notebooklm-py` is an unofficial, reverse-engineered NotebookLM client—not an official Google
 > API. It can break when Google changes the product and may be unsuitable for some environments.
-> Review Google's terms before using it; choose `edge-tts` when this integration is unacceptable.
+> The `gemini-tts` provider uses Google's documented Cloud Text-to-Speech API.
+
+Gemini TTS defaults to `gemini-2.5-pro-tts` and the Charon/Kore voices. Override them with
+`podcast.gemini_model`, `podcast.gemini_voice_a`, and `podcast.gemini_voice_b`.
+Dialogue is divided into requests of at most 3,000 UTF-8 bytes, below Google's 4,000-byte text
+limit. Each response is checked for empty or incomplete PCM data, unexpected format, and implausible
+duration before joining into one WAV file. These checks detect common truncation failures; they do
+not verify spoken-word accuracy. A failed section leaves no partially published episode. The script
+is retained in the output directory for review. The dashboard plays both WAV and MP3 episodes.
+
+TTS is billed separately from Claude script generation. At the published Gemini 2.5 Pro TTS rate,
+15 minutes of audio output costs approximately $0.45, plus input tokens, retries, and script
+generation. See [Google pricing](https://cloud.google.com/text-to-speech/pricing).
 
 ## Privacy and cost
 
@@ -301,6 +321,9 @@ Distill is local-first, but it is not fully offline:
   when sending that content to the configured model provider is permitted.
 - Jina Reader receives article URLs only when local extraction fallbacks fail.
 - NotebookLM receives the selected podcast source document when that provider is enabled.
+- With `gemini-tts`, Anthropic receives the selected article text for script generation and Google
+  Cloud Text-to-Speech receives the generated dialogue. Cloud authentication uses Application Default
+  Credentials; no Google browser session is required.
 - Extracted content remains the property of its authors and publishers. Distill is intended for
   personal curation; respect copyright and provider terms.
 
