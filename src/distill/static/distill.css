@@ -235,7 +235,7 @@ nav.container > .nav-actions { gap: 8px; margin-left: auto; }
 [data-theme="dark"] .icon-moon, [data-theme="light"] .icon-sun { display: none; }
 
 /* Use the available screen width with modest, responsive side gutters. */
-main.container, footer.container { width: 100%; max-width: none; margin-inline: auto; padding-inline: clamp(16px, 6vw, 120px); }
+main.container, footer.container { width: 100%; max-width: none; margin-inline: auto; padding-inline: clamp(16px, 8vw, 160px); }
 main.container { min-height: calc(100vh - 140px); padding-top: 24px; padding-bottom: 32px; }
 .page-header { margin: 0 0 20px; }
 .page-header h1 { margin: 0; font-size: 20px; line-height: 28px; }
