@@ -40,7 +40,6 @@
         <ul class="nav-actions">
             <li><a href="/add" class="add-link{% if request.url.path == '/add' %} active{% endif %}" {% if request.url.path == '/add' %}aria-current="page"{% endif %}>+ Add links</a></li>
             <li><button type="button" class="header-button" data-refresh hidden>refresh</button></li>
-            <li><button type="button" class="header-button" data-open-dialog="navigation-dialog" aria-label="Open navigation menu" aria-keyshortcuts="Meta+K Control+K" hidden>⌘K</button></li>
             <li><button type="button" class="header-button" data-open-dialog="shortcuts-dialog" aria-label="Keyboard shortcuts" hidden>?</button></li>
             <li>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle light/dark theme">
