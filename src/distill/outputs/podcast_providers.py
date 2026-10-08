@@ -11,6 +11,11 @@ import httpx
 from distill.models import Article, ScoreBreakdown
 
 StatusCallback = Callable[[str], None]
+PODCAST_BRIEF = (
+    "You are briefing a senior software engineer who uses AI coding agents daily. "
+    "Cover practical takeaways, genuine novelty, and what can be applied Monday "
+    "morning. Be direct, skip hype, and stay conversational but information-dense."
+)
 
 
 @dataclass(frozen=True)
@@ -31,12 +36,14 @@ def get_podcast_provider(name: str, config: dict) -> PodcastProvider:
     if name == "notebooklm":
         return NotebookLMProvider()
     if name == "gemini-api-tts":
-        from distill.outputs.gemini_api_tts import GeminiAPITTSProvider
+        from distill.outputs.gemini_api_tts import ALEX_STYLE, SARAH_STYLE, GeminiAPITTSProvider
 
         return GeminiAPITTSProvider(
             model=config.get("gemini_api_model", "gemini-3.8-flash-tts"),
-            voice_a=config.get("gemini_voice_a", "Charon"),
-            voice_b=config.get("gemini_voice_b", "Kore"),
+            voice_a=config.get("gemini_voice_a", "Puck"),
+            voice_b=config.get("gemini_voice_b", "Aoede"),
+            style_a=config.get("gemini_style_a", ALEX_STYLE),
+            style_b=config.get("gemini_style_b", SARAH_STYLE),
         )
     if name == "gemini-tts":
         from distill.outputs.gemini_tts import GeminiTTSProvider
@@ -80,12 +87,7 @@ class NotebookLMProvider:
                 content=source_text,
                 wait=True,
             )
-            instructions = (
-                "You are briefing a senior software engineer who uses AI coding agents daily. "
-                "Cover practical takeaways, genuine novelty, and what can be applied Monday "
-                "morning. Be direct, skip hype, and stay conversational but information-dense."
-            )
-            status = await client.artifacts.generate_audio(notebook.id, instructions=instructions)
+            status = await client.artifacts.generate_audio(notebook.id, instructions=PODCAST_BRIEF)
             on_status("Waiting for NotebookLM audio (this takes a few minutes)...")
             await client.artifacts.wait_for_completion(notebook.id, status.task_id, timeout=600.0)
             await client.artifacts.download_audio(notebook.id, str(audio_path))
@@ -166,20 +168,31 @@ async def _generate_script(source: PodcastSource) -> str:
         summaries.append(entry)
 
     articles_block = "\n---\n".join(summaries)
-    prompt = f"""Write a podcast script for two hosts (Alex and Sarah) discussing this week's \
-top AI and software engineering articles. The audience is senior software engineers who \
-actively use AI coding agents (Claude Code, Cursor) in daily work.
+    prompt = f"""{PODCAST_BRIEF}
+
+Write a two-host deep-dive discussion for Alex and Sarah, ready to speak aloud.
 
 Guidelines:
-- Natural, conversational tone — like two knowledgeable friends catching up
+- Build a shared argument across the sources, not a sequence of article summaries.
+- Alex explores how things work; Sarah probes implications and challenges assumptions.
+  Both bring insight, ask real follow-up questions, and sometimes revise their view.
+- Make each turn respond to the previous one: answer, question, qualify, or build on it.
+  Mix brief reactions with explanations; most turns should be 10-45 words. Occasionally
+  use a longer explanation when needed. Avoid alternating equal-length mini-lectures.
+- Use contractions, concrete examples, varied sentence lengths, and a little dry humor
+  when it arises naturally. Do not manufacture excitement, laughter, filler, agreement,
+  personal experiences, or claims that the hosts tested or watched something.
 - Cover EVERY article, but spend more time on higher-scored and [MUST COVER] articles
 - Focus on practical takeaways: what can the listener apply at work Monday morning?
-- Be direct, skip hype. Call out what's genuinely novel vs. rehashed.
-- Target 10-15 minutes of content (roughly 2000-3000 words)
-- Start with a brief intro, end with a quick wrap-up of key themes
-- Use natural transitions between topics
+- Attribute specific findings, numbers, and vendor claims naturally. Make a material
+  limitation clear where it matters, without repeating a disclaimer after every source.
+  Keep hypotheses and suggested experiments distinct from reported results.
+- Target 12-16 minutes (roughly 1800-2400 words). Open with an interesting tension or
+  concrete question, then orient the listener. Connect topics through ideas and callbacks.
+  End with a useful conclusion and mention the original article links in Distill.
 
-Format each line as:
+Output only spoken dialogue. Keep delivery directions out of the transcript.
+Format each turn as:
 [Alex] dialogue here
 [Sarah] dialogue here
 

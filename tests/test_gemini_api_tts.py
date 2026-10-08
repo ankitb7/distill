@@ -45,9 +45,21 @@ def audio_response(request: httpx.Request, value: int = 1) -> tuple[dict, bytes]
 def test_provider_configuration():
     provider = get_podcast_provider(
         "gemini-api-tts",
-        {"gemini_api_model": "gemini-3.8-flash-lite-tts", "gemini_voice_a": "Puck"},
+        {
+            "gemini_api_model": "gemini-3.8-flash-lite-tts",
+            "gemini_voice_a": "Charon",
+            "gemini_voice_b": "Kore",
+            "gemini_style_a": "Curious and relaxed",
+            "gemini_style_b": "Thoughtful and playful",
+        },
     )
-    assert provider == GeminiAPITTSProvider("gemini-3.8-flash-lite-tts", "Puck", "Kore")
+    assert provider == GeminiAPITTSProvider(
+        "gemini-3.8-flash-lite-tts",
+        "Charon",
+        "Kore",
+        "Curious and relaxed",
+        "Thoughtful and playful",
+    )
 
 
 @pytest.mark.asyncio
@@ -76,8 +88,8 @@ async def test_developer_api_preserves_turns_and_joins_validated_audio(tmp_path)
     assert len(statuses) == len(requests)
     assert all(request["model"] == "gemini-3.8-flash-tts" for request in requests)
     assert requests[0]["generation_config"]["speech_config"]["speakers"] == [
-        {"speaker": "Alex", "voice": "Charon"},
-        {"speaker": "Sarah", "voice": "Kore"},
+        {"speaker": "Alex", "voice": "Puck"},
+        {"speaker": "Sarah", "voice": "Aoede"},
     ]
     spoken = {"Alex": [], "Sarah": []}
     for request in requests:
@@ -88,6 +100,21 @@ async def test_developer_api_preserves_turns_and_joins_validated_audio(tmp_path)
         assert " ".join(spoken[speaker.title()]).split() == text.split()
     with wave.open(str(path)) as audio:
         assert audio.readframes(audio.getnframes()) == b"".join(pcm)
+
+
+def test_delivery_directions_stay_out_of_spoken_dialogue():
+    provider = get_podcast_provider(
+        "gemini-api-tts",
+        {"gemini_style_a": "Curious and relaxed", "gemini_style_b": "Thoughtful and playful"},
+    )
+    turns = provider._payload("Alex: Why does this matter?\nSarah: Consider the review.")["input"][
+        0
+    ]["content"]
+    assert [turn["text"] for turn in turns] == ["Why does this matter?", "Consider the review."]
+    assert [turn["annotations"][0] for turn in turns] == [
+        {"type": "speech_metadata", "speaker": "Alex", "style": "Curious and relaxed"},
+        {"type": "speech_metadata", "speaker": "Sarah", "style": "Thoughtful and playful"},
+    ]
 
 
 @pytest.mark.asyncio

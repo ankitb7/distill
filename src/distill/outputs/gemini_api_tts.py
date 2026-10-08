@@ -19,14 +19,27 @@ if TYPE_CHECKING:
     from distill.outputs.podcast_providers import PodcastSource
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
-STYLE = "Warm, conversational engineering podcast; natural pauses, measured pace."
+ALEX_STYLE = (
+    "Relaxed, curious podcast co-host talking directly to a colleague. "
+    "Think through the idea as you speak; lively but unhurried, with varied emphasis and rhythm. "
+    "Let short reactions be quick, questions sound curious, and explanations breathe. "
+    "Conversational intimacy, not an announcer or a read-aloud lecture. No forced laughter."
+)
+SARAH_STYLE = (
+    "Warm, perceptive podcast co-host actively listening and responding to a colleague. "
+    "Natural, lightly playful delivery; thoughtful questions, gentle skepticism, varied pitch. "
+    "Use easy contractions and brief pauses around the important thought, not every sentence. "
+    "Sound engaged in discovering the answer together. No presenter cadence or forced laughter."
+)
 
 
 @dataclass(frozen=True)
 class GeminiAPITTSProvider:
     model: str = "gemini-3.8-flash-tts"
-    voice_a: str = "Charon"
-    voice_b: str = "Kore"
+    voice_a: str = "Puck"
+    voice_b: str = "Aoede"
+    style_a: str = ALEX_STYLE
+    style_b: str = SARAH_STYLE
 
     def _api_key(self) -> str:
         key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -132,7 +145,11 @@ class GeminiAPITTSProvider:
                     "type": "text",
                     "text": dialogue,
                     "annotations": [
-                        {"type": "speech_metadata", "speaker": speaker, "style": STYLE}
+                        {
+                            "type": "speech_metadata",
+                            "speaker": speaker,
+                            "style": self.style_a if speaker == "Alex" else self.style_b,
+                        }
                     ],
                 }
             )

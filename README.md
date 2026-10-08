@@ -309,8 +309,12 @@ the dashboard, and authentication failures explain how to reauthenticate.
 metadata and WAV output. Set `podcast.gemini_api_model` to `gemini-3.8-flash-lite-tts` to use
 Flash-Lite instead. See [Google's TTS documentation](https://ai.google.dev/gemini-api/docs/speech-generation).
 `gemini-tts` uses the separate Cloud TTS API and defaults to `gemini-2.5-pro-tts`, configurable
-with `podcast.gemini_model`. Both use Charon/Kore voices, configurable with
-`podcast.gemini_voice_a` and `podcast.gemini_voice_b`.
+with `podcast.gemini_model`. The configured voices are Puck/Aoede, adjustable with
+`podcast.gemini_voice_a` and `podcast.gemini_voice_b`. The Developer API gives each host
+separate delivery direction, configurable with `podcast.gemini_style_a` and
+`podcast.gemini_style_b`. Direction is passed as speech metadata, never spoken dialogue.
+Script generation shares NotebookLM's briefing instructions and asks for a connected deep-dive
+conversation with short exchanges, follow-up questions, and natural attribution of claims.
 
 Dialogue is divided into requests of at most 3,000 UTF-8 bytes, also below Cloud TTS's
 4,000-byte text limit. Each response is checked for empty or incomplete PCM data, unexpected format, and implausible
