@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from rich.console import Console
 
 from distill.config import get_db_path
 from distill.db import Database
+from distill.models import Digest
 from distill.outputs.podcast_providers import (
     DEFAULT_PODCAST_PROVIDER,
     PODCAST_PROVIDERS,
@@ -29,6 +31,18 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 _generating: bool = False
 _last_error: str | None = None
 _active_provider: str | None = None
+
+
+def _archive_entry(digest: Digest) -> dict:
+    weekly = re.fullmatch(r"(\d{4})-W(\d{2})", digest.week_label)
+    kind = "Weekly" if weekly else "Comparison" if "comparison-" in digest.week_label else "Custom"
+    fallback = f"Week {int(weekly[2])}, {weekly[1]}" if weekly else "Custom briefing"
+    return {
+        "digest": digest,
+        "title": digest.podcast_title or fallback,
+        "kind": kind,
+        "date_label": datetime.fromisoformat(digest.created_at).strftime("%d %b %Y").lstrip("0"),
+    }
 
 
 def _build_slack_channel_map(config: dict) -> dict[str, str]:
@@ -52,6 +66,15 @@ def create_app(config: dict) -> FastAPI:
 
     def get_db() -> Database:
         return Database(db_path)
+
+    def shell_context(request: Request) -> dict:
+        db = get_db()
+        try:
+            return {"library_count": db.get_stats()["total_articles"]}
+        finally:
+            db.close()
+
+    templates.context_processors.append(shell_context)
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request, source: str = "", limit: int = 50):
@@ -112,7 +135,18 @@ def create_app(config: dict) -> FastAPI:
         db = get_db()
         digests = db.list_digests()
         db.close()
-        return templates.TemplateResponse(request, "digest.html", {"digests": digests})
+        entries = [_archive_entry(digest) for digest in digests]
+        groups = [
+            {"name": name, "entries": [entry for entry in entries if entry["kind"] == kind]}
+            for kind, name in [
+                ("Weekly", "Weekly"),
+                ("Comparison", "Comparisons"),
+                ("Custom", "Custom runs"),
+            ]
+        ]
+        return templates.TemplateResponse(
+            request, "digest.html", {"digests": digests, "digest_groups": groups}
+        )
 
     @app.get("/digest/{week_label}", response_class=HTMLResponse)
     async def digest_detail(request: Request, week_label: str):
@@ -139,6 +173,7 @@ def create_app(config: dict) -> FastAPI:
                 {
                     "podcast": podcast,
                     "articles": db.get_podcast_articles(podcast.week_label),
+                    "kind": _archive_entry(podcast)["kind"],
                     "date_label": datetime.fromisoformat(podcast.created_at)
                     .strftime("%d %b %Y")
                     .lstrip("0"),

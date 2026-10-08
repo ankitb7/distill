@@ -2,12 +2,14 @@
 {% block title %}Podcasts — Distill{% endblock %}
 {% block content %}
 {% macro provider_fields(prefix) %}
+<div class="provider-grid"><div>
 <label for="{{ prefix }}-provider">Audio provider</label>
 <select id="{{ prefix }}-provider" name="provider" {% if generating %}disabled{% endif %}>
     {% for value, label in providers.items() %}
     <option value="{{ value }}" {% if value == provider %}selected{% endif %}>{{ label }}</option>
     {% endfor %}
 </select>
+</div><div>
 <label for="{{ prefix }}-script-provider">Podcastfy script provider</label>
 <select id="{{ prefix }}-script-provider" name="script_provider"
         aria-describedby="{{ prefix }}-script-help" {% if generating %}disabled{% endif %}>
@@ -15,6 +17,7 @@
     <option value="{{ value }}" {% if value == script_provider %}selected{% endif %}>{{ label }}</option>
     {% endfor %}
 </select>
+</div></div>
 <p id="{{ prefix }}-script-help" class="form-help">Used with Podcastfy. Uses your configured API key; Edge voices need no extra key.</p>
 {% endmacro %}
 <div class="page-header">
@@ -32,46 +35,59 @@
 </div>
 {% endif %}
 
-<div class="action-grid">
-    <section class="action-card">
-        <h2>Weekly briefing</h2>
+<section class="panel episode-generator" aria-labelledby="new-episode-title">
+    <div class="generator-heading">
+        <h2 id="new-episode-title" class="section-label">New episode</h2>
+        <div class="episode-modes" role="group" aria-label="Episode type" hidden>
+            <button type="button" data-mode="weekly" aria-pressed="true" aria-controls="weekly-form">Weekly briefing</button>
+            <button type="button" data-mode="custom" aria-pressed="false" aria-controls="custom-form">Custom episode</button>
+        </div>
+    </div>
+    <form id="weekly-form" action="/podcasts/generate" method="post">
+        <h3 class="mode-title">Weekly briefing</h3>
         <p>Turn this week’s selected and manually added articles into one episode.</p>
-        <form action="/podcasts/generate" method="post">
-            {{ provider_fields('weekly') }}
-            <button type="submit"
-                    {% if generating %}disabled{% endif %}>
-                Generate Weekly Podcast
-            </button>
-        </form>
-    </section>
-    <section class="action-card">
-        <h2>Custom episode</h2>
+        {{ provider_fields('weekly') }}
+        <button type="submit" {% if generating %}disabled{% endif %}>Generate Weekly Podcast</button>
+    </form>
+    <form id="custom-form" action="/podcasts/generate" method="post">
+        <h3 class="mode-title">Custom episode</h3>
         <p>Choose exact articles when you need a focused deep dive.</p>
-        <form action="/podcasts/generate" method="post">
-            {{ provider_fields('custom') }}
-            <label class="visually-hidden" for="article-ids">Article IDs</label>
-            <input id="article-ids" type="text" name="article_ids" placeholder="Article IDs, for example 12, 45, 78">
-            <button type="submit" class="secondary"
-                    {% if generating %}disabled{% endif %}>
-                Generate On-Demand
-            </button>
-        </form>
-    </section>
-</div>
+        {{ provider_fields('custom') }}
+        <label for="article-ids">Article IDs</label>
+        <input id="article-ids" type="text" name="article_ids" placeholder="Article IDs, for example 12, 45, 78" pattern="\s*[0-9]+(\s*,\s*[0-9]+)*\s*" required>
+        <button type="submit" {% if generating %}disabled{% endif %}>Generate On-Demand</button>
+    </form>
+</section>
 
+{% if episodes %}
+<h2 class="section-label">Episodes ({{ episodes|length }})</h2>
+<div class="episode-list">
+{% endif %}
 {% for episode in episodes %}
 {% set p = episode.podcast %}
 {% set episode_title = p.podcast_title or 'AI engineering briefing' %}
-<section class="action-card" id="episode-{{ p.week_label }}" aria-labelledby="heading-{{ p.week_label }}">
+<section class="action-card episode-row" data-title="{{ episode_title }}" id="episode-{{ p.week_label }}" aria-labelledby="heading-{{ p.week_label }}">
+    {% if p.podcast_path.endswith(('.mp3', '.wav', '.m4a')) %}
+    <button class="episode-play" type="button" aria-label="Play {{ episode_title }}" hidden>
+        <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+        <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>
+    </button>
+    {% endif %}
+    <div class="episode-body">
     <div class="podcast-heading">
         <h2 id="heading-{{ p.week_label }}">{{ episode_title }}</h2>
         <time class="podcast-date" datetime="{{ p.created_at[:10] }}">{{ episode.date_label }}</time>
     </div>
-    <p>{{ p.article_count }} {{ 'article' if p.article_count == 1 else 'articles' }}</p>
+    <p class="episode-meta"><span class="episode-kind" data-kind="{{ episode.kind }}">{{ episode.kind }}</span> {{ p.article_count }} {{ 'article' if p.article_count == 1 else 'articles' }}</p>
     {% if p.podcast_path.endswith(('.mp3', '.wav', '.m4a')) %}
-    <audio controls preload="none" aria-label="Listen to {{ episode_title }}">
+    <audio controls preload="metadata" aria-label="Listen to {{ episode_title }}">
         <source src="/podcast-file/{{ p.week_label }}">
     </audio>
+    <div class="episode-scrub" hidden>
+        <input type="range" min="0" max="0" step="1" value="0" aria-label="Seek in {{ episode_title }}" disabled>
+        <span class="episode-time">0:00 / —</span>
+    </div>
+    <p class="playback-error" role="status" hidden></p>
     {% else %}
     <p><a href="/podcast-file/{{ p.week_label }}">Download {{ episode_title }}</a></p>
     {% endif %}
@@ -93,6 +109,7 @@
     {% else %}
     <p>Article links weren’t saved for this episode. New episodes will include their source articles here.</p>
     {% endif %}
+    </div>
 </section>
 {% else %}
 <div class="empty-state">
@@ -100,6 +117,7 @@
     <p>Create an episode above to listen and explore its original articles.</p>
 </div>
 {% endfor %}
+{% if episodes %}</div>{% endif %}
 
 <details style="margin-top: 1.5rem;">
     <summary>How podcasts work</summary>

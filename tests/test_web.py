@@ -164,6 +164,47 @@ def test_stats_page():
     assert resp.status_code == 200
 
 
+def test_library_counts_and_percentages_use_real_data(tmp_db):
+    for i in range(4):
+        tmp_db.insert_article(
+            CollectedArticle(
+                title=f"Article {i}",
+                url=f"https://example.com/stats-{i}",
+                source=Source.RSS if i < 3 else Source.HACKERNEWS,
+                content_text="Extracted content" if i < 2 else None,
+            )
+        )
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    response = client.get("/stats")
+    assert response.status_code == 200
+    assert "4 in library" in response.text
+    assert "50.0% · full text extracted" in response.text
+    assert "75%" in response.text
+    assert "25%" in response.text
+    empty_db = Database(tmp_db.db_path.parent / "empty-stats.db")
+    empty_db.init_schema()
+    empty_db.close()
+    empty = TestClient(create_app(_make_config(empty_db.db_path))).get("/stats")
+    assert empty.status_code == 200
+    assert "0.0% · collected" in empty.text
+
+
+def test_digest_groups_keep_original_links_and_escape_generated_titles(tmp_db, tmp_path):
+    tmp_db.insert_digest("2026-W41", "# Weekly", 3)
+    tmp_db.save_podcast(
+        "2026-comparison-sample", tmp_path / "sample.mp3", 2, title="Agents <prove> value"
+    )
+    tmp_db.save_podcast("custom-sample", tmp_path / "custom.mp3", 1, title="Custom topic")
+    response = TestClient(create_app(_make_config(tmp_db.db_path))).get("/digests")
+    assert response.status_code == 200
+    assert "Week 41, 2026" in response.text
+    assert "Comparisons <span>(1)</span>" in response.text
+    assert "Custom runs <span>(1)</span>" in response.text
+    assert "Agents &lt;prove&gt; value" in response.text
+    for label in ["2026-W41", "2026-comparison-sample", "custom-sample"]:
+        assert f'href="/digest/{label}"' in response.text
+
+
 def test_digest_detail_uses_application_shell():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
