@@ -1,5 +1,18 @@
 // Progressive enhancement: forms, navigation, and native audio still work without JavaScript.
 (() => {
+    const articleBack = document.querySelector('[data-article-back]');
+    if (articleBack && document.referrer) {
+        const previous = new URL(document.referrer);
+        if (previous.origin === location.origin && previous.pathname === '/') {
+            articleBack.href = previous.href;
+            articleBack.addEventListener('click', event => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || history.length < 2) return;
+                event.preventDefault();
+                history.back();
+            });
+        }
+    }
+
     const modes = document.querySelector('.episode-modes');
     if (modes) {
         const forms = { weekly: document.querySelector('#weekly-form'), custom: document.querySelector('#custom-form') };

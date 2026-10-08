@@ -290,6 +290,17 @@ def test_audio_only_records_are_not_advertised_as_written_digests(tmp_db, tmp_pa
     assert 'id="episode-audio-only"' in client.get("/podcasts").text
 
 
+def test_article_detail_has_back_link(tmp_db):
+    article_id = tmp_db.insert_article(
+        CollectedArticle(title="Example", url="https://example.com/article", source=Source.RSS)
+    )
+    client = TestClient(create_app(_make_config(tmp_db.db_path)))
+    response = client.get(f"/article/{article_id}")
+    assert response.status_code == 200
+    assert 'href="/" data-article-back' in response.text
+    assert "Back to briefing" in response.text
+
+
 def test_article_not_found():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
